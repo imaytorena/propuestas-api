@@ -1,0 +1,25 @@
+if [ ! -d "/app/node_modules/" ]; then
+  echo "node_modules no existe, iniciamos la instalación."
+  if [ -f "package-lock.json" ]; then
+    echo "package-lock.json existe, ejecutando npm ci."
+    if ! npm ci; then
+        echo "npm ci falló, intentando npm install."
+        npm install
+    fi
+  else
+    echo "package-lock.json no existe, ejecutando npm install."
+    npm install
+  fi
+else
+  echo "node_modules existe, recuerda que si hay cambios en el package.json debes ejecutar npm install"
+fi
+
+source /app/.env
+
+if [ "$NODE_ENV" == "production" ]; then
+  echo "Ejecutando modo producción."
+  npm run start
+else
+  echo "Ejecutando modo desarrollo."
+  npm run start:dev
+fi
