@@ -8,7 +8,6 @@ import {
   Query,
   Param,
 } from '@nestjs/common';
-import { Idea as IdeaModel } from '.prisma/client';
 import { IdeasService } from './ideas.service';
 import { CreateIdeaDto, UpdateIdeaDto, ListAllEntities } from './dto/ideas.dto';
 
@@ -16,36 +15,29 @@ import { CreateIdeaDto, UpdateIdeaDto, ListAllEntities } from './dto/ideas.dto';
 export class IdeasController {
   constructor(private readonly ideasService: IdeasService) {}
 
-  @Get()
-  async getIdeas(): Promise<IdeaModel[] | null> {
-    return this.ideasService.getAll();
-  }
-
   @Post()
   create(@Body() createIdeaDto: CreateIdeaDto) {
-    console.log(createIdeaDto);
-    return 'This action adds a new Idea called';
+    return this.ideasService.create(createIdeaDto);
   }
 
   @Get()
   findAll(@Query() query: ListAllEntities) {
-    console.log(query);
-    return `This action returns all cats (limit: ${query.limit} items)`;
+    query.limit = query.limit ?? 10;
+    return this.ideasService.getAll(query);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return `This action returns a #${id} cat`;
+    return `This action returns a #${id} idea`;
   }
 
   @Put(':id')
   update(@Param('id') id: string, @Body() updateIdeaDto: UpdateIdeaDto) {
-    console.log(updateIdeaDto);
-    return `This action updates a #${id} cat`;
+    return this.ideasService.update(parseInt(id), updateIdeaDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return `This action removes a #${id} cat`;
+    return `This action removes a #${id} idea`;
   }
 }

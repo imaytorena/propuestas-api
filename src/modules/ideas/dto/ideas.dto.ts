@@ -1,11 +1,11 @@
 export class CreateIdeaDto {
-  nombre: string;
+  contenido: string;
 }
 
 export class UpdateIdeaDto {
-  nombre: string;
+  contenido: string;
 }
 
 export class ListAllEntities {
-  limit: number;
+  limit: string;
 }

@@ -1,0 +1,43 @@
+name: qci
+networks:
+  qci:
+services:
+  qci-postgres:
+    #Comentar dependiendo del sistema operativo
+    platform: linux/amd64
+    container_name: qci-postgres
+    image: postgres:14-alpine
+    tty: true
+    ports:
+      - ${DB_EXPOSE_PORT}:5432
+    volumes:
+      - ./db_postgres:/var/lib/postgresql/data
+      - ./db_postgres:/usr/share/postgresql/postgresql.conf
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks:
+      - qci
+  qci-api:
+    #Comentar dependiendo del sistema operativo
+    platform: linux/amd64
+    container_name: qci-api
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile.dev
+    volumes:
+      - .:/app
+    ports:
+      - ${API_EXPOSE_PORT}:3000
+    networks:
+      - qci
+  qci-mail:
+    container_name: qci-mail
+    image: maildev/maildev:latest
+    ports:
+      - ${MAIL_WEB_EXPOSE_PORT}:1080
+      - ${MAIL_EXPOSE_PORT}:1025
+    networks:
+      - qci

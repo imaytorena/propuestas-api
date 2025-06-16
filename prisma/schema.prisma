@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -41,6 +41,7 @@ model Usuario {
   carrera           Carrera?              @relation(fields: [carreraId], references: [id])
   habilidades       UsuariosHabilidades[]
 
+  @@unique([carrera])
   @@index([carreraId], map: "usuarios_carrera_id_fkey")
   @@map("usuarios")
 }
