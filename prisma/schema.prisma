@@ -1,6 +1,7 @@
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "library"
+  provider        = "prisma-client-js"
+  engineType      = "library"
+  previewFeatures = ["views", "fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -10,314 +11,261 @@ datasource db {
 
 model Carrera {
   id                  Int       @id @default(autoincrement())
+  // info
   nombre              String    @db.VarChar(255)
   centroUniversitario String    @map("centro_universitario") @db.VarChar(255)
-  usuarios            Usuario[]
+  // relations
+  usuarios            Usuario[] @relation("CarreraUsuarios")
 
   @@map("carreras")
 }
 
 model Usuario {
-  id                Int                   @id @default(autoincrement())
-  nombre            String                @db.VarChar(255)
-  primerApellido    String                @map("primer_apellido") @db.VarChar(255)
-  segundoApellido   String                @map("segundo_apellido") @db.VarChar(255)
-  username          String                @unique @db.VarChar(32)
-  correo            String                @unique @db.VarChar(255)
-  password          String                @db.VarChar(255)
-  carreraId         Int?                  @map("carrera_id")
-  bio               String?               @db.Text
-  age               Int?
-  createdAt         DateTime              @default(now()) @map("created_at")
-  actividades       Actividad[]
-  evaluaciones      Evaluacion[]
-  likes             Like[]
-  mensajesEnviados  Mensaje[]             @relation("MensajesEnviados")
-  mensajesRecibidos Mensaje[]             @relation("MensajesRecibidos")
-  miembros          Miembro[]
-  propuestas        Propuesta[]
-  representante     Representante[]
-  sessions          Session[]
-  carrera           Carrera?              @relation(fields: [carreraId], references: [id])
-  habilidades       UsuariosHabilidades[]
+  id              Int        @id @default(autoincrement())
+  // access
+  cuentaId        Int        @unique @map("cuenta_id")
+  // info
+  nombre          String     @db.VarChar(255)
+  primerApellido  String     @map("primer_apellido") @db.VarChar(255)
+  segundoApellido String     @map("segundo_apellido") @db.VarChar(255)
+  nombreCompleto  String     @map("nombre_completo") @db.VarChar(765)
+  bio             String?    @db.Text
+  age             Int?
+  direccionId     Int?       @map("direccion_id")
+  carreraId       Int?       @map("carrera_id")
+  // status
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
+  // relations
+  direccion       Direccion? @relation("UsuariosDireccion", fields: [direccionId], references: [id])
+  cuenta          Cuenta?    @relation("UsuarioCuenta")
+  carrera         Carrera?   @relation("CarreraUsuarios", fields: [carreraId], references: [id])
 
-  @@unique([carrera])
-  @@index([carreraId], map: "usuarios_carrera_id_fkey")
   @@map("usuarios")
 }
 
-model Session {
-  id        String   @id @db.VarChar(255)
-  usuarioId Int?     @map("usuario_id")
-  annon     Boolean? @default(false)
-  ipAddress String?  @map("ip_address") @db.VarChar(50)
-  expiresAt DateTime @map("expires_at")
-  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+model Comunidad {
+  id                Int         @id @default(autoincrement())
+  // access
+  cuentaId          Int         @map("cuenta_id")
+  // info
+  nombre            String      @db.VarChar(255)
+  descripcion       String      @db.Text
+  minColaboradores  Int         @default(1) @map("min_colaboradores")
+  maxRepresentantes Int         @default(1) @map("max_representantes")
+  coloniaId         Int?        @map("colonia_id")
+  creadorId         Int         @map("creador_id")
+  // status
+  isActive          Boolean     @default(true) @map("is_active")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at")
+  deletedAt         DateTime?   @map("deleted_at")
+  // relations
+  cuenta            Cuenta?     @relation("ComunidadCuenta")
+  colonia           Colonia?    @relation("ComunidadesColonia", fields: [coloniaId], references: [id])
+  categorias        Categoria[] @relation("ComunidadCategorias")
+  creador           Cuenta      @relation("CreadorComunidad", fields: [creadorId], references: [id])
 
-  @@index([usuarioId], map: "session_usuario_id_fkey")
-  @@map("session")
+  @@map("comunidades")
 }
 
-model Habilidad {
-  id       Int                   @id @default(autoincrement())
-  nombre   String                @db.VarChar(255)
-  usuarios UsuariosHabilidades[]
+model Cuenta {
+  id                 Int         @id @default(autoincrement())
+  comunidadId        Int?        @unique @map("comunidad_id")
+  usuarioId          Int?        @unique @map("usuario_id")
+  // access
+  uuid               String      @default(dbgenerated("gen_random_uuid()")) @map("uuid") @db.Uuid
+  identificador      String      @unique @db.VarChar(32)
+  correo             String?     @unique @db.VarChar(255)
+  codigo             String?     @unique @db.VarChar(9)
+  password           String      @db.VarChar(255)
+  // relations
+  comunidad          Comunidad?  @relation("ComunidadCuenta", fields: [comunidadId], references: [id])
+  usuario            Usuario?    @relation("UsuarioCuenta", fields: [usuarioId], references: [id])
+  comunidadesCreadas Comunidad[] @relation("CreadorComunidad")
+  propuestas         Propuesta[] @relation("PropuestasCreadas")
+  actividades        Actividad[] @relation("ActividadesCreadas")
 
-  @@map("habilidades")
+  @@map("cuentas")
 }
 
-model UsuariosHabilidades {
-  usuarioId   Int       @map("usuario_id")
-  habilidadId Int       @map("habilidad_id")
-  habilidad   Habilidad @relation(fields: [habilidadId], references: [id])
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+model Direccion {
+  id        Int       @id @default(autoincrement())
+  // info
+  calle     String?   @map("calle") @db.VarChar(255)
+  noExt     String?   @map("no_ext") @db.VarChar(10)
+  noInt     String?   @map("no_int") @db.VarChar(10)
+  cp        String?   @map("cp") @db.VarChar(10)
+  coloniaId Int?      @map("colonia_id")
+  // relations
+  colonia   Colonia?  @relation("DireccionesColonia", fields: [coloniaId], references: [id])
+  usuario   Usuario[] @relation("UsuariosDireccion")
 
-  @@id([usuarioId, habilidadId])
-  @@index([habilidadId], map: "usuarios_habilidades_habilidad_id_fkey")
-  @@map("usuarios_habilidades")
+  @@map("direcciones")
+}
+
+model Municipio {
+  id       Int       @id @default(autoincrement())
+  // info
+  cve      String    @map("cve") @db.VarChar(10)
+  nombre   String    @map("nombre") @db.VarChar(255)
+  // relations
+  colonias Colonia[] @relation("colonia")
+
+  @@index([cve])
+  @@map("municipios")
+}
+
+model Colonia {
+  id           Int         @id @default(autoincrement())
+  estadoId     Int         @map("estado_id")
+  municipioId  Int         @map("municipio_id")
+  cveMunicipio String      @default("") @map("cve_municipio") @db.VarChar(10)
+  cve          String      @map("cve") @db.VarChar(10)
+  //info
+  nombre       String      @map("nombre") @db.VarChar(255)
+  coordenadas  Json?
+  // relations
+  comunidades  Comunidad[] @relation("ComunidadesColonia")
+  municipio    Municipio?  @relation("colonia", fields: [municipioId], references: [id])
+  direcciones  Direccion[] @relation("DireccionesColonia")
+
+  @@map("colonias")
 }
 
 model Categoria {
-  id          Int                   @id @default(autoincrement())
-  nombre      String                @db.VarChar(255)
-  actividades ActividadCategorias[]
-  comunidades ComunidadCategorias[]
-  propuestas  PropuestaCategorias[]
+  id          Int        @id @default(autoincrement())
+  // info
+  nombre      String     @db.VarChar(255)
+  propuestaId Int?       @map("propuesta_id")
+  actividadId Int?       @map("actividad_id")
+  comunidadId Int?       @map("comunidad_id")
+  // relations
+  actividades Actividad? @relation("ActividadCategorias", fields: [actividadId], references: [id])
+  comunidades Comunidad? @relation("ComunidadCategorias", fields: [comunidadId], references: [id])
+  propuestas  Propuesta? @relation("PropuestaCategorias", fields: [propuestaId], references: [id])
 
   @@map("categorias")
 }
 
 model Propuesta {
-  id           Int                     @id @default(autoincrement())
-  nombre       String                  @db.VarChar(255)
-  descripcion  String                  @db.Text
-  fechaEntrega DateTime?               @map("fecha_entrega")
-  multimediaId Int?                    @map("multimedia_id")
-  creadorId    Int?                    @map("creador_id")
-  estado       String                  @default("Iniciando") @db.VarChar(50)
-  createdAt    DateTime                @default(now()) @map("created_at")
-  categorias   PropuestaCategorias[]
-  evaluaciones PropuestaEvaluaciones[]
-  creador      Usuario?                @relation(fields: [creadorId], references: [id])
-  multimedia   Multimedia?             @relation(fields: [multimediaId], references: [id])
+  id          Int         @id @default(autoincrement())
+  // info
+  nombre      String      @db.VarChar(255)
+  descripcion String      @db.Text
+  creadorId   Int         @map("creador_id")
+  //  fechaEntrega DateTime?               @map("fecha_entrega")
+  // status
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+  // relations
+  categorias  Categoria[] @relation("PropuestaCategorias")
+  creador     Cuenta?     @relation("PropuestasCreadas", fields: [creadorId], references: [id])
 
-  @@index([creadorId], map: "propuestas_creador_id_fkey")
-  @@index([multimediaId], map: "propuestas_multimedia_id_fkey")
   @@map("propuestas")
 }
 
-model PropuestaEvaluaciones {
-  id           Int        @id @default(autoincrement())
-  propuestaId  Int        @map("propuesta_id")
-  evaluacionId Int        @map("evaluacion_id")
-  evaluacion   Evaluacion @relation(fields: [evaluacionId], references: [id])
-  propuesta    Propuesta  @relation(fields: [propuestaId], references: [id])
-
-  @@index([evaluacionId], map: "propuesta_evaluaciones_evaluacion_id_fkey")
-  @@index([propuestaId], map: "propuesta_evaluaciones_propuesta_id_fkey")
-  @@map("propuesta_evaluaciones")
-}
-
-model PropuestaCategorias {
-  id          Int       @id @default(autoincrement())
-  propuestaId Int       @map("propuesta_id")
-  categoriaId Int       @map("categoria_id")
-  categoria   Categoria @relation(fields: [categoriaId], references: [id])
-  propuesta   Propuesta @relation(fields: [propuestaId], references: [id])
-
-  @@index([categoriaId], map: "propuesta_categorias_categoria_id_fkey")
-  @@index([propuestaId], map: "propuesta_categorias_propuesta_id_fkey")
-  @@map("propuesta_categorias")
-}
-
 model Actividad {
-  id           Int                     @id @default(autoincrement())
-  nombre       String                  @db.VarChar(255)
-  descripcion  String                  @db.Text
-  multimediaId Int?                    @map("multimedia_id")
-  fechaEntrega DateTime?               @map("fecha_entrega")
-  creadorId    Int?                    @map("creador_id")
-  estado       String                  @default("Iniciando") @db.VarChar(50)
-  createdAt    DateTime                @default(now()) @map("created_at")
-  categorias   ActividadCategorias[]
-  evaluaciones ActividadEvaluaciones[]
-  creador      Usuario?                @relation(fields: [creadorId], references: [id])
-  multimedia   Multimedia?             @relation(fields: [multimediaId], references: [id])
+  id          Int       @id @default(autoincrement())
+  // info
+  nombre      String    @db.VarChar(255)
+  descripcion String    @db.Text
+  creadorId   Int       @map("creador_id")
+  //  fechaEntrega DateTime?               @map("fecha_entrega")
+  // status
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  @@index([creadorId], map: "actividades_creador_id_fkey")
-  @@index([multimediaId], map: "actividades_multimedia_id_fkey")
+  // relations
+  categorias Categoria[] @relation("ActividadCategorias")
+  creador    Cuenta?     @relation("ActividadesCreadas", fields: [creadorId], references: [id])
+
   @@map("actividades")
 }
 
-model ActividadCategorias {
-  id          Int       @id @default(autoincrement())
-  actividadId Int       @map("actividad_id")
-  categoriaId Int       @map("categoria_id")
-  actividad   Actividad @relation(fields: [actividadId], references: [id])
-  categoria   Categoria @relation(fields: [categoriaId], references: [id])
+//model Evaluacion {
+//  id           Int                     @id @default(autoincrement())
+//  evaluadoId   Int                     @map("evaluado_id")
+//  evaluadorId  Int                     @map("evaluador_id")
+//  calificacion Int
+//  comentario   String?                 @db.Text
+//  createdAt    DateTime                @default(now()) @map("created_at")
+//  actividades  ActividadEvaluaciones[]
+//  evaluador    Usuario                 @relation(fields: [evaluadorId], references: [id])
+//  propuestas   PropuestaEvaluaciones[]
+//
+//  @@index([evaluadorId], map: "evaluaciones_evaluador_id_fkey")
+//  @@map("evaluaciones")
+//}
 
-  @@index([actividadId], map: "actividad_categorias_actividad_id_fkey")
-  @@index([categoriaId], map: "actividad_categorias_categoria_id_fkey")
-  @@map("actividad_categorias")
-}
+//model Mensaje {
+//  id         Int      @id @default(autoincrement())
+//  emisorId   Int      @map("emisor_id")
+//  receptorId Int      @map("receptor_id")
+//  contenido  String   @db.Text
+//  createdAt  DateTime @default(now()) @map("created_at")
+//  emisor     Usuario  @relation("MensajesEnviados", fields: [emisorId], references: [id])
+//  receptor   Usuario  @relation("MensajesRecibidos", fields: [receptorId], references: [id])
+//
+//  @@index([emisorId], map: "mensajes_emisor_id_fkey")
+//  @@index([receptorId], map: "mensajes_receptor_id_fkey")
+//  @@map("mensajes")
+//}
 
-model ActividadEvaluaciones {
-  id           Int        @id @default(autoincrement())
-  actividadId  Int        @map("actividad_id")
-  evaluacionId Int        @map("evaluacion_id")
-  actividad    Actividad  @relation(fields: [actividadId], references: [id])
-  evaluacion   Evaluacion @relation(fields: [evaluacionId], references: [id])
+//model Multimedia {
+//  id          Int         @id @default(autoincrement())
+//  url         String      @db.VarChar(255)
+//  createdAt   DateTime    @default(now()) @map("created_at")
+//  updatedAt   DateTime    @default(now()) @map("updated_at")
+//  actividades Actividad[]
+//  comunidades Comunidad[]
+//  propuestas  Propuesta[]
+//
+//  @@map("multimedias")
+//}
 
-  @@index([actividadId], map: "actividad_evaluaciones_actividad_id_fkey")
-  @@index([evaluacionId], map: "actividad_evaluaciones_evaluacion_id_fkey")
-  @@map("actividad_evaluaciones")
-}
-
-model Evaluacion {
-  id           Int                     @id @default(autoincrement())
-  evaluadoId   Int                     @map("evaluado_id")
-  evaluadorId  Int                     @map("evaluador_id")
-  calificacion Int
-  comentario   String?                 @db.Text
-  createdAt    DateTime                @default(now()) @map("created_at")
-  actividades  ActividadEvaluaciones[]
-  evaluador    Usuario                 @relation(fields: [evaluadorId], references: [id])
-  propuestas   PropuestaEvaluaciones[]
-
-  @@index([evaluadorId], map: "evaluaciones_evaluador_id_fkey")
-  @@map("evaluaciones")
-}
-
-model Mensaje {
-  id         Int      @id @default(autoincrement())
-  emisorId   Int      @map("emisor_id")
-  receptorId Int      @map("receptor_id")
-  contenido  String   @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
-  emisor     Usuario  @relation("MensajesEnviados", fields: [emisorId], references: [id])
-  receptor   Usuario  @relation("MensajesRecibidos", fields: [receptorId], references: [id])
-
-  @@index([emisorId], map: "mensajes_emisor_id_fkey")
-  @@index([receptorId], map: "mensajes_receptor_id_fkey")
-  @@map("mensajes")
-}
-
-model Multimedia {
-  id          Int         @id @default(autoincrement())
-  url         String      @db.VarChar(255)
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @default(now()) @map("updated_at")
-  actividades Actividad[]
-  comunidades Comunidad[]
-  propuestas  Propuesta[]
-
-  @@map("multimedias")
-}
-
-model Ubicacion {
-  id          Int         @id @default(autoincrement())
-  nombre      String      @db.VarChar(255)
-  municipio   String      @db.VarChar(255)
-  coordenadas Json?
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @default(now()) @map("updated_at")
-  comunidades Comunidad[]
-
-  @@map("ubicaciones")
-}
-
-model Comunidad {
-  id                Int                   @id @default(autoincrement())
-  nombre            String                @db.VarChar(255)
-  descripcion       String                @db.Text
-  multimediaId      Int?                  @map("multimedia_id")
-  minColaboradores  Int                   @default(1) @map("min_colaboradores")
-  maxRepresentantes Int                   @default(1) @map("max_representantes")
-  ubicacionId       Int?                  @map("ubicacion_id")
-  createdAt         DateTime              @default(now()) @map("created_at")
-  updatedAt         DateTime              @default(now()) @map("updated_at")
-  categorias        ComunidadCategorias[]
-  multimedia        Multimedia?           @relation(fields: [multimediaId], references: [id])
-  ubicacion         Ubicacion?            @relation(fields: [ubicacionId], references: [id])
-  miembros          Miembro[]
-  representantes    Representante[]
-
-  @@index([multimediaId], map: "comunidades_multimedia_id_fkey")
-  @@index([ubicacionId], map: "comunidades_ubicacion_id_fkey")
-  @@map("comunidades")
-}
-
-model Representante {
-  id          Int       @id @default(autoincrement())
-  comunidadId Int       @map("comunidad_id")
-  usuarioId   Int       @map("usuario_id")
-  fechaInicio DateTime  @default(now()) @map("fecha_inicio")
-  fechaFin    DateTime? @map("fecha_fin")
-  activo      Boolean   @default(true)
-  comunidad   Comunidad @relation(fields: [comunidadId], references: [id])
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
-
-  @@index([comunidadId], map: "representantes_comunidad_id_fkey")
-  @@index([usuarioId], map: "representantes_usuario_id_fkey")
-  @@map("representantes")
-}
-
-model Miembro {
-  id          Int       @id @default(autoincrement())
-  comunidadId Int       @map("comunidad_id")
-  usuarioId   Int       @map("usuario_id")
-  rol         String    @db.VarChar(50)
-  fechaUnion  DateTime  @default(now()) @map("fecha_union")
-  comunidad   Comunidad @relation(fields: [comunidadId], references: [id])
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
-
-  @@index([comunidadId], map: "miembros_comunidad_id_fkey")
-  @@index([usuarioId], map: "miembros_usuario_id_fkey")
-  @@map("miembros")
-}
-
-model ComunidadCategorias {
-  comunidadId Int       @map("comunidad_id")
-  categoriaId Int       @map("categoria_id")
-  categoria   Categoria @relation(fields: [categoriaId], references: [id])
-  comunidad   Comunidad @relation(fields: [comunidadId], references: [id])
-
-  @@id([comunidadId, categoriaId])
-  @@index([categoriaId], map: "comunidad_categorias_categoria_id_fkey")
-  @@map("comunidad_categorias")
-}
+//model Representante {
+//  id          Int       @id @default(autoincrement())
+//  comunidadId Int       @map("comunidad_id")
+//  usuarioId   Int       @map("usuario_id")
+//  fechaInicio DateTime  @default(now()) @map("fecha_inicio")
+//  fechaFin    DateTime? @map("fecha_fin")
+//  activo      Boolean   @default(true)
+//  comunidad   Comunidad @relation(fields: [comunidadId], references: [id])
+//  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+//
+//  @@index([comunidadId], map: "representantes_comunidad_id_fkey")
+//  @@index([usuarioId], map: "representantes_usuario_id_fkey")
+//  @@map("representantes")
+//}
 
 model Idea {
   id        Int       @id @default(autoincrement())
+  // info
   contenido String    @db.VarChar(255)
+  // status
+  isActive  Boolean   @default(true) @map("is_active")
   createdAt DateTime  @default(now()) @map("created_at")
-  ediciones Edicion[]
-  likes     Like[]
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   @@map("ideas")
 }
 
 model Edicion {
-  id        Int      @id @default(autoincrement())
-  ideaId    Int      @map("idea_id")
-  contenido String   @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
-  idea      Idea     @relation(fields: [ideaId], references: [id])
+  id          Int      @id @default(autoincrement())
+  editedId    Int      @map("edited_id")
+  editedTable Int      @map("edited_table")
+  key         String   @db.Text
+  oldValue    String   @map("old_value") @db.Text
+  editedAt    DateTime @default(now()) @map("created_at")
+  editedBy    DateTime @default(now()) @map("edited_by")
 
-  @@index([ideaId], map: "ediciones_idea_id_fkey")
   @@map("ediciones")
-}
-
-model Like {
-  id        Int      @id @default(autoincrement())
-  ideaId    Int      @map("idea_id")
-  usuarioId Int?     @map("usuario_id")
-  ipAddress String   @map("ip_address") @db.VarChar(50)
-  createdAt DateTime @default(now()) @map("created_at")
-  idea      Idea     @relation(fields: [ideaId], references: [id])
-  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
-
-  @@unique([ideaId, ipAddress, usuarioId])
-  @@index([usuarioId], map: "likes_usuario_id_fkey")
-  @@map("likes")
 }

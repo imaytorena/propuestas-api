@@ -10,12 +10,6 @@ export class IdeasService {
   async getAll(q: ListAllEntities): Promise<Idea[] | null> {
     return this.prisma.idea.findMany({
       take: parseInt(q.limit),
-      include: {
-        ediciones: {
-          take: 3,
-          orderBy: { createdAt: 'desc' },
-        },
-      },
     });
   }
 
@@ -52,12 +46,12 @@ export class IdeasService {
         },
       });
 
-      await this.prisma.edicion.create({
-        data: {
-          ideaId: id,
-          contenido: nuevaIdea.contenido,
-        },
-      });
+      // await this.prisma.edicion.create({
+      //   data: {
+      //     ideaId: id,
+      //     contenido: nuevaIdea.contenido,
+      //   },
+      // });
 
       return ideaCreated;
     }

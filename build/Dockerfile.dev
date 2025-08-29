@@ -9,7 +9,7 @@ RUN apk --no-cache upgrade && \
 WORKDIR /app
 EXPOSE 3000
 
-COPY ./docker/development/start /usr/local/bin/start
+COPY ./build/start /usr/local/bin/start
 RUN chmod u+x /usr/local/bin/start
 
 CMD ["/bin/sh", "-c", "/usr/local/bin/start"]
