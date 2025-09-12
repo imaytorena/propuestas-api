@@ -7,10 +7,18 @@ import {
   Delete,
   Query,
   Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { IdeasService } from './ideas.service';
-import { CreateIdeaDto, UpdateIdeaDto, ListAllEntities } from './dto/ideas.dto';
+import {
+  CreateIdeaDto,
+  UpdateIdeaDto,
+  ListAllEntities,
+  GeneratePropuestaFromIdeaDto,
+} from './dto/ideas.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('ideas')
 @Controller('ideas')
 export class IdeasController {
   constructor(private readonly ideasService: IdeasService) {}
@@ -22,22 +30,32 @@ export class IdeasController {
 
   @Get()
   findAll(@Query() query: ListAllEntities) {
-    query.limit = query.limit ?? 10;
     return this.ideasService.getAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return `This action returns a #${id} idea`;
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.ideasService.findOne(id);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateIdeaDto: UpdateIdeaDto) {
-    return this.ideasService.update(parseInt(id), updateIdeaDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateIdeaDto: UpdateIdeaDto,
+  ) {
+    return this.ideasService.update(id, updateIdeaDto);
+  }
+
+  @Post(':id/generar-propuesta')
+  generarPropuesta(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GeneratePropuestaFromIdeaDto,
+  ) {
+    return this.ideasService.generarPropuesta(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return `This action removes a #${id} idea`;
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.ideasService.remove(id);
   }
 }

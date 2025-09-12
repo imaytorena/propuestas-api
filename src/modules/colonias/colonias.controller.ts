@@ -7,23 +7,28 @@ export class ColoniasController {
 
   @Get()
   async getAll() {
-    const ubicaciones = await this.prismaService.ubicacion.findMany({
-      take: 10,
-    });
-
-    return {
-      type: 'FeatureCollection',
-      features: ubicaciones.map((ubicacion) => ({
-        type: 'Feature',
-        properties: {
-          municipio: ubicacion.municipio,
-          nombre: ubicacion.nombre,
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: ubicacion.coordenadas as number[][][],
-        },
-      })),
-    };
+    //   const direcciones = await this.prismaService.direccion.findMany({
+    //     take: 5,
+    //     include: {
+    //       colonia: {
+    //         municipio: true,
+    //       },
+    //     },
+    //   });
+    //
+    //   return {
+    //     type: 'FeatureCollection',
+    //     features: direcciones.map((direccion) => ({
+    //       type: 'Feature',
+    //       properties: {
+    //         municipio: direccion.colonia?.municipio?.nombre,
+    //         nombre: direccion.colonia?.nombre,
+    //       },
+    //       geometry: {
+    //         type: 'Polygon',
+    //         coordinates: direccion.coordenadas as number[][][],
+    //       },
+    //     })),
+    //   };
   }
 }

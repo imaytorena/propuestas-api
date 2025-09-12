@@ -269,3 +269,18 @@ model Edicion {
 
   @@map("ediciones")
 }
+
+view ViewDireccion {
+  id            Int     @unique
+  // info
+  calle         String? @map("calle") @db.VarChar(255)
+  noExt         String? @map("no_ext") @db.VarChar(10)
+  noInt         String? @map("no_int") @db.VarChar(10)
+  cp            String? @map("cp") @db.VarChar(10)
+  colonia       String? @map("colonia")
+  municipio     String?
+  cve_municipio String? @map("cve_municipio")
+  searchable    String?
+
+  @@map("view_direccion")
+}

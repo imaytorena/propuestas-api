@@ -7,5 +7,13 @@ export class CreateIdeaDto {
 export class UpdateIdeaDto extends PartialType(CreateIdeaDto) {}
 
 export class ListAllEntities {
-  limit: string;
+  limit?: number;
+}
+
+// DTO para generar propuesta desde una idea
+export class GeneratePropuestaFromIdeaDto {
+  creadorId: number;
+  nombre?: string;
+  descripcion?: string;
+  categoriaIds?: number[];
 }
