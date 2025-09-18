@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
-import { Idea } from '@prisma/client';
+import { Idea, Prisma } from '@prisma/client';
 import {
   CreateIdeaDto,
   ListAllEntities,
@@ -14,9 +14,27 @@ export class IdeasService {
 
   async getAll(q: ListAllEntities): Promise<Idea[]> {
     const limit = Math.min(q.limit ?? 10, 100);
+    let comunidadIdFilter: number | undefined;
+    if (q.comunidadId !== undefined && q.comunidadId !== null) {
+      const parsed = Number(
+        (q as unknown as { comunidadId?: unknown }).comunidadId as any,
+      );
+      if (!Number.isNaN(parsed)) comunidadIdFilter = parsed;
+    }
+
+    const where: Prisma.IdeaWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      ...(typeof comunidadIdFilter !== 'undefined'
+        ? { comunidadId: comunidadIdFilter }
+        : {}),
+    };
     return this.prisma.idea.findMany({
-      where: { isActive: true, deletedAt: null },
+      where,
       take: limit,
+      include: {
+        comunidad: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -32,8 +50,12 @@ export class IdeasService {
   }
 
   async create(idea: CreateIdeaDto): Promise<Idea> {
+    console.log(idea);
     return this.prisma.idea.create({
       data: idea,
+      include: {
+        comunidad: true,
+      },
     });
   }
 
@@ -43,7 +65,7 @@ export class IdeasService {
       throw new HttpException('Idea no encontrada', HttpStatus.NOT_FOUND);
     }
 
-    const data: { contenido?: string } = {};
+    const data: { contenido?: string; comunidadId?: number } = {};
     if (typeof nuevaIdea.contenido !== 'undefined') {
       if (actual.contenido === nuevaIdea.contenido) {
         throw new HttpException(
@@ -53,12 +75,23 @@ export class IdeasService {
       }
       data.contenido = nuevaIdea.contenido;
     }
+    if (typeof nuevaIdea.comunidadId !== 'undefined') {
+      if (actual.comunidadId !== nuevaIdea.comunidadId) {
+        data.comunidadId = nuevaIdea.comunidadId;
+      }
+    }
 
     if (Object.keys(data).length === 0) {
       return actual; // nothing to update
     }
 
-    const updated = await this.prisma.idea.update({ where: { id }, data });
+    const updated = await this.prisma.idea.update({
+      where: { id },
+      include: {
+        comunidad: true,
+      },
+      data,
+    });
 
     // Registrar edición según modelo Prisma Edicion
     try {
@@ -87,11 +120,22 @@ export class IdeasService {
     const nombre = (dto.nombre ?? contenido).slice(0, 255);
     const descripcion = dto.descripcion ?? contenido;
 
+    let comunidadIdForPropuesta: number | undefined;
+    if (typeof dto.comunidadId === 'number') {
+      comunidadIdForPropuesta = dto.comunidadId;
+    } else if (typeof idea.comunidadId === 'number') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      comunidadIdForPropuesta = idea.comunidadId;
+    } else {
+      comunidadIdForPropuesta = undefined;
+    }
+
     const propuesta = await this.prisma.propuesta.create({
       data: {
         nombre,
         descripcion,
         creadorId: dto.creadorId,
+        comunidadId: comunidadIdForPropuesta,
         categorias: dto.categoriaIds?.length
           ? { connect: dto.categoriaIds.map((cid) => ({ id: cid })) }
           : undefined,
