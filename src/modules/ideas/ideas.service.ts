@@ -12,8 +12,18 @@ import {
 export class IdeasService {
   constructor(private prisma: PrismaService) {}
 
-  async getAll(q: ListAllEntities): Promise<Idea[]> {
+  async getAll(q: ListAllEntities): Promise<{
+    data: Idea[];
+    meta: { total: number; page: number; limit: number; pageCount: number };
+  }> {
     const limit = Math.min(q.limit ?? 10, 100);
+    const pageParsed = Number(
+      (q as unknown as { page?: unknown }).page as unknown as number,
+    );
+    const page =
+      !Number.isNaN(pageParsed) && pageParsed > 0 ? Math.floor(pageParsed) : 1;
+    const skip = (page - 1) * limit;
+
     let comunidadIdFilter: number | undefined;
     if (q.comunidadId !== undefined && q.comunidadId !== null) {
       const parsed = Number(
@@ -29,14 +39,26 @@ export class IdeasService {
         ? { comunidadId: comunidadIdFilter }
         : {}),
     };
-    return this.prisma.idea.findMany({
-      where,
-      take: limit,
-      include: {
-        comunidad: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.idea.count({ where }),
+      this.prisma.idea.findMany({
+        where,
+        take: limit,
+        skip,
+        include: {
+          comunidad: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const pageCount = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data,
+      meta: { total, page, limit, pageCount },
+    };
   }
 
   async findOne(id: number): Promise<Idea> {

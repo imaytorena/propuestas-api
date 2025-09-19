@@ -8,10 +8,13 @@ async function bootstrap() {
   app.enableCors({ origin: true });
 
   const config = new DocumentBuilder()
-    .setTitle('Cats example')
-    .setDescription('The cats API description')
+    .setTitle('QCI API')
+    .setDescription('API for QCI platform')
     .setVersion('1.0')
-    .addTag('cats')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);

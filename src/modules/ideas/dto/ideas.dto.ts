@@ -9,6 +9,7 @@ export class UpdateIdeaDto extends PartialType(CreateIdeaDto) {}
 
 export class ListAllEntities {
   limit?: number;
+  page?: number; // número de página (1-based)
   comunidadId?: number; // filtro opcional por comunidad
 }
 

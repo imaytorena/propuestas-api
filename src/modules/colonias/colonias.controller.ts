@@ -48,6 +48,7 @@ export class ColoniasController {
         .map((colonia) => ({
           type: 'Feature',
           properties: {
+            id: colonia.id,
             nombre: colonia.nombre,
             municipio: colonia.municipio?.nombre,
           },

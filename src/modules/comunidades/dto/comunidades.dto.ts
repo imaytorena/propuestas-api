@@ -18,6 +18,7 @@ export class UpdateComunidadDto extends PartialType(CreateComunidadDto) {}
 
 export class ListComunidadesQuery {
   limit?: number;
+  page?: number; // número de página (1-based)
   coloniaId?: number;
   creadorId?: number;
 }

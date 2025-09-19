@@ -32,6 +32,11 @@ export class ComunidadesController {
     return this.service.getAll(query);
   }
 
+  @Get('paginadas')
+  findAllPaginated(@Query() query: ListComunidadesQuery) {
+    return this.service.getAllPaginated(query);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
