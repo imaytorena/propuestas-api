@@ -8,14 +8,17 @@ import {
   Query,
   Param,
   ParseIntPipe,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ComunidadesService } from './comunidades.service';
 import {
   CreateComunidadDto,
   UpdateComunidadDto,
   ListComunidadesQuery,
 } from './dto/comunidades.dto';
+import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
 
 @ApiTags('comunidades')
 @Controller('comunidades')
@@ -23,7 +26,12 @@ export class ComunidadesController {
   constructor(private readonly service: ComunidadesService) {}
 
   @Post()
-  create(@Body() dto: CreateComunidadDto) {
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  create(@Body() dto: CreateComunidadDto, @Req() req: RequestWithUser) {
+    // Establecer cuentaId desde el token (el payload.id es el id de la cuenta)
+    console.log(req.user.id)
+    dto.cuentaId = req.user.id;
     return this.service.create(dto);
   }
 

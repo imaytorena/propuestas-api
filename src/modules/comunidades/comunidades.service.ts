@@ -86,6 +86,10 @@ export class ComunidadesService {
   }
 
   async create(data: CreateComunidadDto): Promise<Comunidad> {
+    // Si no se envía explícitamente, usar la misma cuenta como creador
+    if (typeof data.creadorId !== 'number' || Number.isNaN(data.creadorId)) {
+      data.creadorId = data.cuentaId;
+    }
     return this.prisma.comunidad.create({
       data,
     });
