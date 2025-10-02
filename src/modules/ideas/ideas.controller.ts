@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { IdeasService } from './ideas.service';
 import {
@@ -18,7 +19,7 @@ import {
   GeneratePropuestaFromIdeaDto,
 } from './dto/ideas.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/auth.guard';
+import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
 
 @ApiTags('ideas')
 @Controller('ideas')
@@ -56,7 +57,9 @@ export class IdeasController {
   generarPropuesta(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GeneratePropuestaFromIdeaDto,
+    @Req() req: RequestWithUser,
   ) {
+    dto.creadorId = req.user.id;
     return this.ideasService.generarPropuesta(id, dto);
   }
 
