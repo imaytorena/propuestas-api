@@ -7,7 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Query,
+  Query, Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -17,7 +17,7 @@ import {
   ListAllPropuestasQuery,
   UpdatePropuestaDto,
 } from './dto/propuestas.dto';
-import { AuthGuard } from '../../auth/auth.guard';
+import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
 
 @ApiTags('propuestas')
 @Controller('propuestas')
@@ -27,7 +27,9 @@ export class PropuestasController {
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
-  create(@Body() dto: CreatePropuestaDto) {
+  create(@Body() dto: CreatePropuestaDto, @Req() req: RequestWithUser) {
+    dto.creadorId = req.user.id;
+
     return this.propuestasService.create(dto);
   }
 

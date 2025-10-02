@@ -1,7 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 
 export class CreatePropuestaDto {
-  nombre: string;
+  titulo: string;
   descripcion: string;
   creadorId: number;
   categoriaIds?: number[]; // optional: categorias to connect

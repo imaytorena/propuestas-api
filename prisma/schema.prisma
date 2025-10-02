@@ -129,7 +129,7 @@ model Colonia {
   municipioId  Int         @map("municipio_id")
   cveMunicipio String      @default("") @map("cve_municipio") @db.VarChar(10)
   cve          String      @map("cve") @db.VarChar(10)
-  //info
+  // info
   nombre       String      @map("nombre") @db.VarChar(255)
   coordenadas  Json?
   // relations
@@ -158,7 +158,7 @@ model Categoria {
 model Propuesta {
   id          Int         @id @default(autoincrement())
   // info
-  nombre      String      @db.VarChar(255)
+  titulo      String      @db.VarChar(255)
   descripcion String      @db.Text
   creadorId   Int         @map("creador_id")
   comunidadId Int?        @map("comunidad_id")
@@ -198,7 +198,7 @@ model Actividad {
   @@map("actividades")
 }
 
-//model Evaluacion {
+// model Evaluacion {
 //  id           Int                     @id @default(autoincrement())
 //  evaluadoId   Int                     @map("evaluado_id")
 //  evaluadorId  Int                     @map("evaluador_id")
@@ -213,7 +213,7 @@ model Actividad {
 //  @@map("evaluaciones")
 //}
 
-//model Mensaje {
+// model Mensaje {
 //  id         Int      @id @default(autoincrement())
 //  emisorId   Int      @map("emisor_id")
 //  receptorId Int      @map("receptor_id")
@@ -227,7 +227,7 @@ model Actividad {
 //  @@map("mensajes")
 //}
 
-//model Multimedia {
+// model Multimedia {
 //  id          Int         @id @default(autoincrement())
 //  url         String      @db.VarChar(255)
 //  createdAt   DateTime    @default(now()) @map("created_at")
@@ -239,7 +239,7 @@ model Actividad {
 //  @@map("multimedias")
 //}
 
-//model Representante {
+// model Representante {
 //  id          Int       @id @default(autoincrement())
 //  comunidadId Int       @map("comunidad_id")
 //  usuarioId   Int       @map("usuario_id")
