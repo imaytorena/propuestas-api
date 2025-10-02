@@ -30,7 +30,7 @@ async function main() {
   // 1) Ensure a generic admin Cuenta + Usuario
   const adminIdentificador = 'admin_generico';
   const adminCorreo = 'admin@example.com';
-  const adminPassword = 'admin1234'; // NOTE: plain text for seed/demo purposes
+  const adminPassword = '$2b$10$5bqkl582NrZ4kGo/k.4E.ejPGXpzPbs/KjATfTEjobNEg8DSpil2y'; // NOTE: plain text for seed/demo purposes
 
   // Create Cuenta first (usuarioId is optional)
   const adminCuenta = await prisma.cuenta.upsert({
@@ -309,6 +309,113 @@ async function main() {
       },
     ],
   });
+
+  await prisma.propuesta.createMany({
+    data: [
+      {
+        titulo: "Clínicas comunitarias",
+        descripcion: "Construir y mantener clínicas locales con atención médica básica accesible para todos.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Programas de becas",
+        descripcion: "Impulsar apoyos educativos para niños y jóvenes en situación vulnerable.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Centros culturales",
+        descripcion: "Fomentar espacios para talleres artísticos, lectura y actividades recreativas.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Huertos urbanos",
+        descripcion: "Promover huertos comunitarios para autoconsumo y educación ambiental.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Conectividad gratuita",
+        descripcion: "Instalar puntos de internet gratuito en plazas y parques públicos.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Actividades deportivas",
+        descripcion: "Organizar torneos y clases gratuitas de deportes para jóvenes y adultos.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Espacios seguros para mujeres",
+        descripcion: "Crear zonas seguras y líneas de ayuda para prevenir violencia de género.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Bibliotecas digitales",
+        descripcion: "Ofrecer acceso a computadoras e internet para investigación y educación.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Apoyo a emprendedores",
+        descripcion: "Otorgar microcréditos y capacitaciones a pequeños negocios locales.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Educación ambiental",
+        descripcion: "Implementar campañas escolares y vecinales para el cuidado del medio ambiente.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Transporte eficiente",
+        descripcion: "Mejorar rutas de transporte público con horarios accesibles y unidades modernas.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Programas contra adicciones",
+        descripcion: "Ofrecer orientación, talleres y acompañamiento a jóvenes en riesgo.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Guarderías comunitarias",
+        descripcion: "Dar apoyo a madres y padres trabajadores con espacios seguros para sus hijos.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Parques incluyentes",
+        descripcion: "Diseñar áreas recreativas accesibles para personas con discapacidad.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Bancos de alimentos",
+        descripcion: "Recolectar y distribuir alimentos en buen estado para familias necesitadas.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Centros de capacitación laboral",
+        descripcion: "Enseñar oficios y habilidades digitales para mejorar oportunidades de empleo.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Movilidad sustentable",
+        descripcion: "Fomentar transporte en bicicleta y patines eléctricos con estaciones seguras.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Protección animal",
+        descripcion: "Crear campañas de esterilización y adopción de mascotas callejeras.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Eventos comunitarios",
+        descripcion: "Realizar ferias, mercados y festivales para fortalecer la unión vecinal.",
+        creadorId: adminUsuario.id,
+      },
+      {
+        titulo: "Atención a adultos mayores",
+        descripcion: "Ofrecer programas de acompañamiento, recreación y apoyo en salud.",
+        creadorId: adminUsuario.id,
+      }
+    ],
+  });
+
+  console.log("✅ Seed de propuestas insertado correctamente.");
 
   console.log("✅ Seed de ideas insertado correctamente.");
 }
