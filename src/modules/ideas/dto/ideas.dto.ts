@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 
 export class CreateIdeaDto {
+  titulo: string;
   contenido: string;
   comunidadId?: number; // opcional: una idea puede o no pertenecer a una comunidad
 }

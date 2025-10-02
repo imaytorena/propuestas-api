@@ -21,6 +21,9 @@ export class ComunidadesService {
       deletedAt: null,
       ...(typeof q.coloniaId === 'number' ? { coloniaId: q.coloniaId } : {}),
       ...(typeof q.creadorId === 'number' ? { creadorId: q.creadorId } : {}),
+      ...(q.nombre && q.nombre.trim().length > 0
+        ? { nombre: { contains: q.nombre.trim(), mode: 'insensitive' } }
+        : {}),
     };
 
     return this.prisma.comunidad.findMany({
@@ -52,6 +55,9 @@ export class ComunidadesService {
       deletedAt: null,
       ...(typeof q.coloniaId === 'number' ? { coloniaId: q.coloniaId } : {}),
       ...(typeof q.creadorId === 'number' ? { creadorId: q.creadorId } : {}),
+      ...(q.nombre && q.nombre.trim().length > 0
+        ? { nombre: { contains: q.nombre.trim(), mode: 'insensitive' } }
+        : {}),
     };
 
     const [total, data] = await this.prisma.$transaction([
@@ -79,33 +85,16 @@ export class ComunidadesService {
     return comunidad;
   }
 
-  async create(dto: CreateComunidadDto): Promise<Comunidad> {
-    const { categoriaIds, ...rest } = dto;
-
+  async create(data: CreateComunidadDto): Promise<Comunidad> {
     return this.prisma.comunidad.create({
-      data: {
-        ...rest,
-        categorias: categoriaIds?.length
-          ? { connect: categoriaIds.map((id) => ({ id })) }
-          : undefined,
-      },
+      data,
     });
   }
 
-  async update(id: number, dto: UpdateComunidadDto): Promise<Comunidad> {
+  async update(id: number, data: UpdateComunidadDto): Promise<Comunidad> {
     const actual = await this.prisma.comunidad.findUnique({ where: { id } });
     if (!actual || !actual.isActive || actual.deletedAt) {
       throw new HttpException('Comunidad no encontrada', HttpStatus.NOT_FOUND);
-    }
-
-    const { categoriaIds, ...rest } = dto;
-
-    const data: Prisma.ComunidadUpdateInput = { ...rest };
-    if (Array.isArray(categoriaIds)) {
-      data.categorias = {
-        set: [],
-        connect: categoriaIds.map((id) => ({ id })),
-      };
     }
 
     if (Object.keys(data).length === 0) {

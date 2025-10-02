@@ -72,7 +72,6 @@ export class IdeasService {
   }
 
   async create(idea: CreateIdeaDto): Promise<Idea> {
-    console.log(idea);
     return this.prisma.idea.create({
       data: idea,
       include: {
@@ -87,24 +86,14 @@ export class IdeasService {
       throw new HttpException('Idea no encontrada', HttpStatus.NOT_FOUND);
     }
 
-    const data: { contenido?: string; comunidadId?: number } = {};
-    if (typeof nuevaIdea.contenido !== 'undefined') {
-      if (actual.contenido === nuevaIdea.contenido) {
-        throw new HttpException(
-          'El contenido no puede ser igual al actual',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      data.contenido = nuevaIdea.contenido;
-    }
-    if (typeof nuevaIdea.comunidadId !== 'undefined') {
-      if (actual.comunidadId !== nuevaIdea.comunidadId) {
-        data.comunidadId = nuevaIdea.comunidadId;
-      }
-    }
-
-    if (Object.keys(data).length === 0) {
-      return actual; // nothing to update
+    if (
+      actual.titulo === nuevaIdea.titulo ||
+      actual.contenido === nuevaIdea.contenido
+    ) {
+      throw new HttpException(
+        'Los datos no pueden ser iguales a los actuales',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const updated = await this.prisma.idea.update({
@@ -112,7 +101,7 @@ export class IdeasService {
       include: {
         comunidad: true,
       },
-      data,
+      data: nuevaIdea,
     });
 
     // Registrar edición según modelo Prisma Edicion
