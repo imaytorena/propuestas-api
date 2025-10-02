@@ -143,7 +143,7 @@ export class IdeasService {
 
     const propuesta = await this.prisma.propuesta.create({
       data: {
-        nombre,
+        titulo: nombre,
         descripcion,
         creadorId: dto.creadorId,
         comunidadId: comunidadIdForPropuesta,

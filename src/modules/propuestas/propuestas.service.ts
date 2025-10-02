@@ -54,7 +54,7 @@ export class PropuestasService {
 
     const data: Prisma.PropuestaUpdateInput = {};
 
-    if (typeof dto.nombre !== 'undefined') data.nombre = dto.nombre;
+    if (typeof dto.titulo !== 'undefined') data.titulo = dto.titulo;
     if (typeof dto.descripcion !== 'undefined')
       data.descripcion = dto.descripcion;
     // if (typeof dto.creadorId !== 'undefined') data.creadorId = dto.creadorId;
