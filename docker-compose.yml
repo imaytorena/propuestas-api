@@ -16,7 +16,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB}
+      POSTGRES_DB: ${DB_NAME}
       POSTGRES_HOST_AUTH_METHOD: trust
     networks:
       - qci
