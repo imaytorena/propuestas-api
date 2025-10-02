@@ -8,14 +8,16 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropuestasService } from './propuestas.service';
 import {
   CreatePropuestaDto,
   ListAllPropuestasQuery,
   UpdatePropuestaDto,
 } from './dto/propuestas.dto';
+import { AuthGuard } from '../../auth/auth.guard';
 
 @ApiTags('propuestas')
 @Controller('propuestas')
@@ -23,6 +25,8 @@ export class PropuestasController {
   constructor(private readonly propuestasService: PropuestasService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   create(@Body() dto: CreatePropuestaDto) {
     return this.propuestasService.create(dto);
   }
@@ -38,6 +42,8 @@ export class PropuestasController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePropuestaDto,
@@ -46,6 +52,8 @@ export class PropuestasController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.propuestasService.remove(id);
   }

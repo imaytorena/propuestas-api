@@ -30,7 +30,6 @@ export class ComunidadesController {
   @ApiBearerAuth('access-token')
   create(@Body() dto: CreateComunidadDto, @Req() req: RequestWithUser) {
     // Establecer cuentaId desde el token (el payload.id es el id de la cuenta)
-    console.log(req.user.id)
     dto.cuentaId = req.user.id;
     return this.service.create(dto);
   }
@@ -51,6 +50,8 @@ export class ComunidadesController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateComunidadDto,
@@ -59,6 +60,8 @@ export class ComunidadesController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
   }

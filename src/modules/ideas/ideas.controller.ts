@@ -8,6 +8,7 @@ import {
   Query,
   Param,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { IdeasService } from './ideas.service';
 import {
@@ -16,7 +17,8 @@ import {
   ListAllEntities,
   GeneratePropuestaFromIdeaDto,
 } from './dto/ideas.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '../../auth/auth.guard';
 
 @ApiTags('ideas')
 @Controller('ideas')
@@ -24,6 +26,8 @@ export class IdeasController {
   constructor(private readonly ideasService: IdeasService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   create(@Body() createIdeaDto: CreateIdeaDto) {
     return this.ideasService.create(createIdeaDto);
   }
@@ -39,6 +43,8 @@ export class IdeasController {
   }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateIdeaDto: UpdateIdeaDto,
@@ -47,6 +53,8 @@ export class IdeasController {
   }
 
   @Post(':id/generar-propuesta')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   generarPropuesta(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GeneratePropuestaFromIdeaDto,
@@ -55,6 +63,8 @@ export class IdeasController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.ideasService.remove(id);
   }
