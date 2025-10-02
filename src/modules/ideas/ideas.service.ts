@@ -18,7 +18,7 @@ export class IdeasService {
   }> {
     const limit = Math.min(q.limit ?? 100, 100);
     const pageParsed = Number(
-      (q as unknown as { page?: unknown }).page as unknown as number,
+      (q as unknown as { page?: unknown }).page as number,
     );
     const page =
       !Number.isNaN(pageParsed) && pageParsed > 0 ? Math.floor(pageParsed) : 1;
@@ -154,6 +154,9 @@ export class IdeasService {
       include: { categorias: true, creador: true },
     });
 
+    await this.prisma.idea.delete({
+      where: { id: idea.id },
+    });
     return propuesta;
   }
 
