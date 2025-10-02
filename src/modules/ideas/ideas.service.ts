@@ -16,7 +16,7 @@ export class IdeasService {
     data: Idea[];
     meta: { total: number; page: number; limit: number; pageCount: number };
   }> {
-    const limit = Math.min(q.limit ?? 10, 100);
+    const limit = Math.min(q.limit ?? 100, 100);
     const pageParsed = Number(
       (q as unknown as { page?: unknown }).page as unknown as number,
     );
