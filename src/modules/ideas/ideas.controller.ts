@@ -26,8 +26,6 @@ export class IdeasController {
   constructor(private readonly ideasService: IdeasService) {}
 
   @Post()
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth('access-token')
   create(@Body() createIdeaDto: CreateIdeaDto) {
     return this.ideasService.create(createIdeaDto);
   }
