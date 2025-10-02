@@ -258,7 +258,7 @@ model Idea {
   id          Int       @id @default(autoincrement())
   // info
   titulo      String    @db.VarChar(255)
-  contenido   String    @db.VarChar(255)
+  descripcion String    @db.VarChar(255)
   comunidadId Int?      @map("comunidad_id")
   // status
   isActive    Boolean   @default(true) @map("is_active")

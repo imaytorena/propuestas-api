@@ -229,83 +229,83 @@ async function main() {
     data: [
       {
         titulo: "Más áreas verdes",
-        contenido: "Implementar parques pequeños en terrenos baldíos para dar oxígeno y espacios de recreación."
+        descripcion: "Implementar parques pequeños en terrenos baldíos para dar oxígeno y espacios de recreación."
       },
       {
         titulo: "Iluminación pública eficiente",
-        contenido: "Colocar luminarias LED que consuman menos y den mayor seguridad durante la noche."
+        descripcion: "Colocar luminarias LED que consuman menos y den mayor seguridad durante la noche."
       },
       {
         titulo: "Banquetas accesibles",
-        contenido: "Adaptar las aceras para personas con discapacidad y adultos mayores."
+        descripcion: "Adaptar las aceras para personas con discapacidad y adultos mayores."
       },
       {
         titulo: "Ciclovías seguras",
-        contenido: "Diseñar ciclovías protegidas del tráfico para fomentar el uso de bicicleta."
+        descripcion: "Diseñar ciclovías protegidas del tráfico para fomentar el uso de bicicleta."
       },
       {
         titulo: "Árboles en calles principales",
-        contenido: "Plantar árboles nativos para sombra, frescura y mejora de la calidad del aire."
+        descripcion: "Plantar árboles nativos para sombra, frescura y mejora de la calidad del aire."
       },
       {
         titulo: "Mantenimiento de baches",
-        contenido: "Implementar un programa de reparación rápida de baches para mejorar la circulación."
+        descripcion: "Implementar un programa de reparación rápida de baches para mejorar la circulación."
       },
       {
         titulo: "Zonas de juego infantil",
-        contenido: "Construir pequeños espacios con juegos seguros para niñas y niños."
+        descripcion: "Construir pequeños espacios con juegos seguros para niñas y niños."
       },
       {
         titulo: "Basureros estratégicos",
-        contenido: "Colocar contenedores de basura en puntos clave para evitar acumulación en las calles."
+        descripcion: "Colocar contenedores de basura en puntos clave para evitar acumulación en las calles."
       },
       {
         titulo: "Pintura vial clara",
-        contenido: "Renovar constantemente la pintura de pasos peatonales y señalización."
+        descripcion: "Renovar constantemente la pintura de pasos peatonales y señalización."
       },
       {
         titulo: "Cruces peatonales elevados",
-        contenido: "Colocar cruces peatonales elevados en avenidas con alto tráfico para mayor seguridad."
+        descripcion: "Colocar cruces peatonales elevados en avenidas con alto tráfico para mayor seguridad."
       },
       {
         titulo: "Jardineras comunitarias",
-        contenido: "Fomentar que vecinos adopten jardineras con plantas resistentes y decorativas."
+        descripcion: "Fomentar que vecinos adopten jardineras con plantas resistentes y decorativas."
       },
       {
         titulo: "Rutas de transporte limpias",
-        contenido: "Exigir limpieza y mantenimiento en paradas y unidades de transporte público."
+        descripcion: "Exigir limpieza y mantenimiento en paradas y unidades de transporte público."
       },
       {
         titulo: "Calles peatonales",
-        contenido: "Designar algunas calles del centro como exclusivas para peatones."
+        descripcion: "Designar algunas calles del centro como exclusivas para peatones."
       },
       {
         titulo: "Mantenimiento de drenaje",
-        contenido: "Evitar inundaciones con limpieza preventiva del alcantarillado."
+        descripcion: "Evitar inundaciones con limpieza preventiva del alcantarillado."
       },
       {
         titulo: "Estaciones de reciclaje",
-        contenido: "Colocar puntos de reciclaje en zonas concurridas para fomentar el cuidado ambiental."
+        descripcion: "Colocar puntos de reciclaje en zonas concurridas para fomentar el cuidado ambiental."
       },
       {
         titulo: "Murales comunitarios",
-        contenido: "Impulsar proyectos artísticos en bardas para embellecer y prevenir grafitis."
+        descripcion: "Impulsar proyectos artísticos en bardas para embellecer y prevenir grafitis."
       },
       {
         titulo: "Rampas en esquinas",
-        contenido: "Colocar rampas en cada esquina para accesibilidad universal."
+        descripcion: "Colocar rampas en cada esquina para accesibilidad universal."
       },
       {
         titulo: "Parquímetros inteligentes",
-        contenido: "Instalar parquímetros digitales que fomenten la rotación de estacionamiento."
+        descripcion: "Instalar parquímetros digitales que fomenten la rotación de estacionamiento."
       },
       {
         titulo: "Cámaras de seguridad",
-        contenido: "Incrementar la seguridad en puntos conflictivos con videovigilancia."
+        descripcion: "Incrementar la seguridad en puntos conflictivos con videovigilancia."
       },
       {
         titulo: "Campañas de limpieza",
-        contenido: "Organizar jornadas vecinales de limpieza y pintura para fortalecer la comunidad."
+        descripcion: "Organizar jornadas vecinales de limpieza y pintura para fortalecer la comunidad."
       },
     ],
   });

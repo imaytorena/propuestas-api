@@ -2,7 +2,7 @@ import { PartialType } from '@nestjs/swagger';
 
 export class CreateIdeaDto {
   titulo: string;
-  contenido: string;
+  descripcion: string;
   comunidadId: number;
 }
 

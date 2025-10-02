@@ -81,14 +81,14 @@ export class IdeasService {
   }
 
   async update(id: number, nuevaIdea: UpdateIdeaDto): Promise<Idea> {
-    const actual = await this.prisma.idea.findUnique({ where: { id } });
+    const actual = await this.prisma.idea.findUnique({ where: { id } }) as Idea;
     if (!actual || !actual.isActive || actual.deletedAt) {
       throw new HttpException('Idea no encontrada', HttpStatus.NOT_FOUND);
     }
 
     if (
       actual.titulo === nuevaIdea.titulo ||
-      actual.contenido === nuevaIdea.contenido
+      actual.descripcion === nuevaIdea.descripcion
     ) {
       throw new HttpException(
         'Los datos no pueden ser iguales a los actuales',
@@ -110,8 +110,8 @@ export class IdeasService {
         data: {
           editedId: id,
           editedTable: 1, // 1=ideas (convención interna)
-          key: 'contenido',
-          oldValue: actual.contenido,
+          key: 'descripcion',
+          oldValue: actual.descripcion,
           // editedAt y editedBy se autogeneran por el schema (DateTime defaults)
         },
       });
@@ -125,11 +125,11 @@ export class IdeasService {
   async generarPropuesta(id: number, dto: GeneratePropuestaFromIdeaDto) {
     const idea = await this.findOne(id);
 
-    // Determinar nombre y descripcion a partir del contenido si no se proveen
-    const contenido = idea.contenido?.trim() ?? '';
+    // Determinar nombre y descripcion a partir del descripcion si no se proveen
+    const descripcionOld = idea.descripcion?.trim() ?? '';
     // nombre máximo 255 chars según Prisma (VarChar 255)
-    const nombre = (dto.nombre ?? contenido).slice(0, 255);
-    const descripcion = dto.descripcion ?? contenido;
+    const nombre = (dto.nombre ?? descripcionOld).slice(0, 255);
+    const descripcion = dto.descripcion ?? descripcionOld;
 
     let comunidadIdForPropuesta: number | undefined;
     if (typeof dto.comunidadId === 'number') {
