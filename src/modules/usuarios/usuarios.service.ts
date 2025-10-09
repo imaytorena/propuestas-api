@@ -8,9 +8,18 @@ export class UsuariosService {
 
   async getById(
     userWhereUniqueInput: Prisma.UsuarioWhereUniqueInput,
-  ): Promise<Usuario | null> {
-    return this.prisma.usuario.findUnique({
-      where: userWhereUniqueInput,
+  ): Promise<any> {
+    return this.prisma.cuenta.findUnique({
+      where: { id: userWhereUniqueInput.id },
+      include: {
+        usuario: {
+          include: {
+            direccion: true,
+            carrera: true,
+          },
+        },
+        comunidad: true,
+      },
     });
   }
 
@@ -51,6 +60,46 @@ export class UsuariosService {
   async delete(where: Prisma.UsuarioWhereUniqueInput): Promise<Usuario> {
     return this.prisma.usuario.delete({
       where,
+    });
+  }
+
+  async updateAccount(id: number, data: any): Promise<any> {
+    const { usuario, ...cuentaData } = data;
+    
+    // Update cuenta
+    const updatedCuenta = await this.prisma.cuenta.update({
+      where: { id },
+      data: cuentaData,
+      include: {
+        usuario: {
+          include: {
+            direccion: true,
+            carrera: true,
+          },
+        },
+        comunidad: true,
+      },
+    });
+
+    // Update usuario if provided
+    if (usuario && updatedCuenta.usuarioId) {
+      await this.prisma.usuario.update({
+        where: { id: updatedCuenta.usuarioId },
+        data: usuario,
+      });
+    }
+
+    return this.prisma.cuenta.findUnique({
+      where: { id },
+      include: {
+        usuario: {
+          include: {
+            direccion: true,
+            carrera: true,
+          },
+        },
+        comunidad: true,
+      },
     });
   }
 }

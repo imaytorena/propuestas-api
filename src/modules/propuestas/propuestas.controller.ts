@@ -28,6 +28,7 @@ export class PropuestasController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
   create(@Body() dto: CreatePropuestaDto, @Req() req: RequestWithUser) {
+    console.log(req.user);
     dto.creadorId = req.user.id;
 
     return this.propuestasService.create(dto);
