@@ -9,7 +9,8 @@ export class UsuariosService {
   async getById(
     userWhereUniqueInput: Prisma.UsuarioWhereUniqueInput,
   ): Promise<any> {
-    return this.prisma.cuenta.findUnique({
+    console.log(userWhereUniqueInput.id);
+    const cuenta = await this.prisma.cuenta.findUnique({
       where: { id: userWhereUniqueInput.id },
       include: {
         usuario: {
@@ -21,6 +22,27 @@ export class UsuariosService {
         comunidad: true,
       },
     });
+
+    const asistencias = await this.prisma.asistente.findMany({
+      where: { 
+        cuentaId: userWhereUniqueInput.id,
+        estado: 'ASISTIRE'
+      },
+      select: { propuestaId: true },
+    });
+
+    const propuestaIds = asistencias.map(a => a.propuestaId);
+
+    const propuestas = await this.prisma.propuesta.findMany({
+      where: {
+        id: { in: propuestaIds },
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: { fechaActividad: 'asc' },
+    });
+
+    return { ...cuenta, propuestasSuscritas: propuestas };
   }
 
   async users(params: {
@@ -89,7 +111,7 @@ export class UsuariosService {
       });
     }
 
-    return this.prisma.cuenta.findUnique({
+    const cuenta = await this.prisma.cuenta.findUnique({
       where: { id },
       include: {
         usuario: {
@@ -101,5 +123,26 @@ export class UsuariosService {
         comunidad: true,
       },
     });
+
+    const asistencias = await this.prisma.asistente.findMany({
+      where: { 
+        cuentaId: id,
+        estado: 'ASISTIRE'
+      },
+      select: { propuestaId: true },
+    });
+
+    const propuestaIds = asistencias.map(a => a.propuestaId);
+
+    const propuestas = await this.prisma.propuesta.findMany({
+      where: {
+        id: { in: propuestaIds },
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: { fechaActividad: 'asc' },
+    });
+
+    return { ...cuenta, propuestasSuscritas: propuestas };
   }
 }

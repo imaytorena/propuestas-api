@@ -5,6 +5,8 @@ import {
   CreatePropuestaDto,
   ListAllPropuestasQuery,
   UpdatePropuestaDto,
+  CreateAsistenteDto,
+  UpdateAsistenteDto,
 } from './dto/propuestas.dto';
 
 @Injectable()
@@ -15,21 +17,30 @@ export class PropuestasService {
     const limit = Math.min(q.limit ?? 10, 100);
     return this.prisma.propuesta.findMany({
       where: { isActive: true, deletedAt: null },
-      include: { categorias: true, creador: true, actividades: true },
+      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
       take: limit,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: number): Promise<Propuesta> {
+  async findOne(id: number, cuentaId?: number): Promise<any> {
     const propuesta = await this.prisma.propuesta.findFirst({
       where: { id, isActive: true, deletedAt: null },
-      include: { categorias: true, creador: true, actividades: true },
+      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
     });
     if (!propuesta) {
       throw new HttpException('Propuesta no encontrada', HttpStatus.NOT_FOUND);
     }
-    return propuesta;
+
+    let estatus: any = null;
+    if (cuentaId) {
+      const asistencia = await this.prisma.asistente.findFirst({
+        where: { propuestaId: id, cuentaId },
+      });
+      estatus = asistencia?.estado || null;
+    }
+
+    return { ...propuesta, estatus };
   }
 
   async create(dto: CreatePropuestaDto): Promise<Propuesta> {
@@ -43,11 +54,17 @@ export class PropuestasService {
       throw new HttpException(`Creador no encontrado con ID: ${dto.creadorId}`, HttpStatus.BAD_REQUEST);
     }
 
-    const { categoriaIds = [], actividades = [], ...data } = dto;
+    const { categoriaIds = [], actividades = [], fechaActividad, ...data } = dto;
     console.log('Actividades recibidas:', actividades, 'Length:', actividades.length);
+    
+    const propuestaData = {
+      ...data,
+      ...(fechaActividad && { fechaActividad: new Date(fechaActividad) }),
+    };
+    
     return this.prisma.propuesta.create({
       data: {
-        ...data,
+        ...propuestaData,
         categorias: categoriaIds.length
           ? { connect: categoriaIds.map((id) => ({ id })) }
           : undefined,
@@ -60,7 +77,7 @@ export class PropuestasService {
             }
           : undefined,
       },
-      include: { categorias: true, creador: true, actividades: true },
+      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
     });
   }
 
@@ -89,6 +106,12 @@ export class PropuestasService {
     if (typeof (dto as any).description !== 'undefined') {
       console.log('Actualizando description:', (dto as any).description);
       data.descripcion = (dto as any).description;
+    }
+    if (typeof dto.horaActividad !== 'undefined') {
+      data.horaActividad = dto.horaActividad;
+    }
+    if (typeof (dto as any).fechaActividad !== 'undefined') {
+      data.fechaActividad = new Date((dto as any).fechaActividad);
     }
     
     console.log('Data para actualizar propuesta:', data);
@@ -145,7 +168,7 @@ export class PropuestasService {
     const updated = await this.prisma.propuesta.update({
       where: { id },
       data,
-      include: { categorias: true, creador: true, actividades: true },
+      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
     });
     console.log('Propuesta actualizada');
 
@@ -160,7 +183,47 @@ export class PropuestasService {
     return this.prisma.propuesta.update({
       where: { id },
       data: { isActive: false, deletedAt: new Date() },
-      include: { categorias: true, creador: true, actividades: true },
+      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+    });
+  }
+
+  async createAsistencia(propuestaId: number, cuentaId: number, dto: CreateAsistenteDto) {
+    const propuesta = await this.prisma.propuesta.findFirst({
+      where: { id: propuestaId, isActive: true, deletedAt: null },
+    });
+    if (!propuesta) {
+      throw new HttpException('Propuesta no encontrada', HttpStatus.NOT_FOUND);
+    }
+
+    const existingAsistencia = await this.prisma.asistente.findFirst({
+      where: { propuestaId, cuentaId },
+    });
+    if (existingAsistencia) {
+      throw new HttpException('Ya existe asistencia para esta propuesta', HttpStatus.CONFLICT);
+    }
+
+    return this.prisma.asistente.create({
+      data: {
+        propuestaId,
+        cuentaId,
+        estado: dto.estado,
+      },
+      include: { propuesta: true, cuenta: true },
+    });
+  }
+
+  async updateAsistencia(propuestaId: number, cuentaId: number, dto: UpdateAsistenteDto) {
+    const asistencia = await this.prisma.asistente.findFirst({
+      where: { propuestaId, cuentaId },
+    });
+    if (!asistencia) {
+      throw new HttpException('Asistencia no encontrada', HttpStatus.NOT_FOUND);
+    }
+
+    return this.prisma.asistente.update({
+      where: { id: asistencia.id },
+      data: { estado: dto.estado },
+      include: { propuesta: true, cuenta: true },
     });
   }
 }

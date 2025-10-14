@@ -16,6 +16,8 @@ import {
   CreatePropuestaDto,
   ListAllPropuestasQuery,
   UpdatePropuestaDto,
+  CreateAsistenteDto,
+  UpdateAsistenteDto,
 } from './dto/propuestas.dto';
 import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
 
@@ -28,7 +30,6 @@ export class PropuestasController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
   create(@Body() dto: CreatePropuestaDto, @Req() req: RequestWithUser) {
-    console.log(req.user);
     dto.creadorId = req.user.id;
 
     return this.propuestasService.create(dto);
@@ -40,8 +41,13 @@ export class PropuestasController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.propuestasService.findOne(id);
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.propuestasService.findOne(id, req.user.id);
   }
 
   @Put(':id')
@@ -59,5 +65,27 @@ export class PropuestasController {
   @ApiBearerAuth('access-token')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.propuestasService.remove(id);
+  }
+
+  @Post(':id/asistencia')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  createAsistencia(
+    @Param('id', ParseIntPipe) propuestaId: number,
+    @Body() dto: CreateAsistenteDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.propuestasService.createAsistencia(propuestaId, req.user.id, dto);
+  }
+
+  @Put(':id/asistencia')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  updateAsistencia(
+    @Param('id', ParseIntPipe) propuestaId: number,
+    @Body() dto: UpdateAsistenteDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.propuestasService.updateAsistencia(propuestaId, req.user.id, dto);
   }
 }
