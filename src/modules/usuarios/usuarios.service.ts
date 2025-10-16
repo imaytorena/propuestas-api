@@ -9,7 +9,6 @@ export class UsuariosService {
   async getById(
     userWhereUniqueInput: Prisma.UsuarioWhereUniqueInput,
   ): Promise<any> {
-    console.log(userWhereUniqueInput.id);
     const cuenta = await this.prisma.cuenta.findUnique({
       where: { id: userWhereUniqueInput.id },
       include: {
