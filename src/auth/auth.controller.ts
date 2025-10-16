@@ -29,7 +29,9 @@ export class AuthController {
       properties: {
         identificador: { type: 'string' },
         password: { type: 'string' },
-        correo: { type: 'string', nullable: true },
+        correo: { type: 'string', nullable: false },
+        nombre: { type: 'string', nullable: false },
+        apellido: { type: 'string', nullable: false },
         usuarioId: { type: 'number', nullable: true },
         comunidadId: { type: 'number', nullable: true },
       },
@@ -42,6 +44,8 @@ export class AuthController {
       identificador: string;
       password: string;
       correo?: string | null;
+      nombre?: string | null;
+      apellido?: string | null;
       usuarioId?: number | null;
       comunidadId?: number | null;
     },

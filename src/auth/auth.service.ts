@@ -62,6 +62,8 @@ export class AuthService {
     identificador: string;
     password: string;
     correo?: string | null;
+    nombre?: string | null;
+    apellido?: string | null;
     usuarioId?: number | null;
     comunidadId?: number | null;
   }) {
@@ -83,6 +85,8 @@ export class AuthService {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
         password: await argon2.hash(data.password),
         correo: data.correo ?? null,
+        nombre: data.nombre ?? null,
+        apellido: data.apellido ?? null,
         usuario: data.usuarioId
           ? { connect: { id: data.usuarioId } }
           : undefined,
