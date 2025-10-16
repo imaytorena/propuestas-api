@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { Prisma, Usuario as UsuarioModel } from '@prisma/client';
 import { ApiBearerAuth } from '@nestjs/swagger';
@@ -33,5 +33,10 @@ export class UsuariosController {
     @Body() data: Prisma.UsuarioCreateInput,
   ): Promise<UsuarioModel> {
     return this.usuariosService.create(data);
+  }
+
+  @Get('validate/identificador')
+  async validateIdentificador(@Query('identificador') identificador: string) {
+    return this.usuariosService.validateIdentificador(identificador);
   }
 }

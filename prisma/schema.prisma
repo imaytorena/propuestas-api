@@ -107,6 +107,9 @@ model Cuenta {
   correo             String?     @unique @db.VarChar(255)
   codigo             String?     @unique @db.VarChar(9)
   password           String      @db.VarChar(255)
+  // info
+  nombre             String?     @db.VarChar(255)
+  apellido           String?     @db.VarChar(255)
   // relations
   comunidad          Comunidad?  @relation("ComunidadCuenta", fields: [comunidadId], references: [id])
   usuario            Usuario?    @relation("UsuarioCuenta", fields: [usuarioId], references: [id])

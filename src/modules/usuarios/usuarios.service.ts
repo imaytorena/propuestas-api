@@ -23,7 +23,7 @@ export class UsuariosService {
       },
     });
 
-    const asistencias = await this.prisma.asistente.findMany({
+    const asistenciasAsistire = await this.prisma.asistente.findMany({
       where: { 
         cuentaId: userWhereUniqueInput.id,
         estado: 'ASISTIRE'
@@ -31,18 +31,28 @@ export class UsuariosService {
       select: { propuestaId: true },
     });
 
-    const propuestaIds = asistencias.map(a => a.propuestaId);
+    const asistenciasInteres = await this.prisma.asistente.findMany({
+      where: { 
+        cuentaId: userWhereUniqueInput.id,
+        estado: 'ME_INTERESA'
+      },
+      select: { propuestaId: true },
+    });
 
-    const propuestas = await this.prisma.propuesta.findMany({
+    const propuestaIdsAsistire = asistenciasAsistire.map(a => a.propuestaId);
+    const propuestaIdsInteres = asistenciasInteres.map(a => a.propuestaId);
+
+
+    const propuestasInteres = await this.prisma.propuesta.findMany({
       where: {
-        id: { in: propuestaIds },
+        id: { in: propuestaIdsInteres },
         isActive: true,
         deletedAt: null,
       },
       orderBy: { fechaActividad: 'asc' },
     });
 
-    return { ...cuenta, propuestasSuscritas: propuestas };
+    return { ...cuenta, propuestaIdsAsistire, propuestasInteres };
   }
 
   async users(params: {
@@ -86,12 +96,18 @@ export class UsuariosService {
   }
 
   async updateAccount(id: number, data: any): Promise<any> {
-    const { usuario, ...cuentaData } = data;
+    const { usuario, nombre, apellido, ...cuentaData } = data;
+    
+    const updateData = {
+      ...cuentaData,
+      ...(nombre && { nombre }),
+      ...(apellido && { apellido }),
+    };
     
     // Update cuenta
     const updatedCuenta = await this.prisma.cuenta.update({
       where: { id },
-      data: cuentaData,
+      data: updateData,
       include: {
         usuario: {
           include: {
@@ -124,7 +140,7 @@ export class UsuariosService {
       },
     });
 
-    const asistencias = await this.prisma.asistente.findMany({
+    const asistenciasAsistire = await this.prisma.asistente.findMany({
       where: { 
         cuentaId: id,
         estado: 'ASISTIRE'
@@ -132,17 +148,42 @@ export class UsuariosService {
       select: { propuestaId: true },
     });
 
-    const propuestaIds = asistencias.map(a => a.propuestaId);
+    const asistenciasInteres = await this.prisma.asistente.findMany({
+      where: { 
+        cuentaId: id,
+        estado: 'ME_INTERESA'
+      },
+      select: { propuestaId: true },
+    });
 
-    const propuestas = await this.prisma.propuesta.findMany({
+    const propuestaIdsAsistire = asistenciasAsistire.map(a => a.propuestaId);
+    const propuestaIdsInteres = asistenciasInteres.map(a => a.propuestaId);
+
+    const propuestasSuscritas = await this.prisma.propuesta.findMany({
       where: {
-        id: { in: propuestaIds },
+        id: { in: propuestaIdsAsistire },
         isActive: true,
         deletedAt: null,
       },
       orderBy: { fechaActividad: 'asc' },
     });
 
-    return { ...cuenta, propuestasSuscritas: propuestas };
+    const propuestasInteres = await this.prisma.propuesta.findMany({
+      where: {
+        id: { in: propuestaIdsInteres },
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: { fechaActividad: 'asc' },
+    });
+
+    return { ...cuenta, propuestasSuscritas, propuestasInteres };
+  }
+
+  async validateIdentificador(identificador: string): Promise<{ available: boolean }> {
+    const existing = await this.prisma.cuenta.findUnique({
+      where: { identificador },
+    });
+    return { available: !existing };
   }
 }
