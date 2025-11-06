@@ -224,7 +224,13 @@ export class ComunidadesService {
         ? {
             OR: params.categorias.flatMap((name) => [
               { categoria: { equals: name, mode: 'insensitive' as const } },
-              { categorias: { some: { nombre: { equals: name, mode: 'insensitive' as const } } } },
+              {
+                categorias: {
+                  some: {
+                    nombre: { equals: name, mode: 'insensitive' as const },
+                  },
+                },
+              },
             ]),
           }
         : {}),
@@ -369,18 +375,57 @@ export class ComunidadesService {
 
     const computeCentroid = (geom: any): Position | null => {
       try {
+        // Allow both proper GeoJSON objects and raw coordinates arrays
         const t = geom?.type;
         const coords = geom?.coordinates;
+
+        // Case 1: Proper GeoJSON objects
         if (t === 'Point') {
           // GeoJSON point is [lng, lat]
-          return coords as Position;
+          return Array.isArray(coords) && coords.length >= 2
+            ? (coords as Position)
+            : null;
         }
         if (t === 'Polygon') {
-          return centroidOfPolygon(coords as Position[][]);
+          return Array.isArray(coords) && Array.isArray(coords[0])
+            ? centroidOfPolygon(coords as Position[][])
+            : null;
         }
         if (t === 'MultiPolygon') {
-          return centroidOfMultiPolygon(coords as Position[][][]);
+          return Array.isArray(coords) && Array.isArray(coords[0])
+            ? centroidOfMultiPolygon(coords as Position[][][])
+            : null;
         }
+
+        // Case 2: Stored as raw coordinates (no GeoJSON `type`)
+        // Detect depth to distinguish Polygon vs MultiPolygon
+        if (Array.isArray(geom)) {
+          // MultiPolygon: Position[][][] (e.g., [ [ [ [lng,lat], ... ] ] , ...])
+          if (
+            Array.isArray(geom[0]) &&
+            Array.isArray((geom as any)[0][0]) &&
+            Array.isArray((geom as any)[0][0][0])
+          ) {
+            return centroidOfMultiPolygon(geom as Position[][][]);
+          }
+          // Polygon: Position[][] (e.g., [ [ [lng,lat], ... ] ])
+          if (
+            Array.isArray(geom[0]) &&
+            Array.isArray((geom as any)[0][0]) &&
+            typeof (geom as any)[0][0][0] === 'number'
+          ) {
+            return centroidOfPolygon(geom as Position[][]);
+          }
+          // Ring-only (rare): Position[] → treat as polygon with single ring
+          if (
+            Array.isArray(geom[0]) &&
+            typeof (geom as any)[0][0] === 'number' &&
+            typeof (geom as any)[0][1] === 'number'
+          ) {
+            return centroidOfRing(geom as Position[]);
+          }
+        }
+
         return null;
       } catch {
         return null;
