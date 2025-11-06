@@ -73,12 +73,10 @@ export class PropuestasService {
   }
 
   async create(dto: CreatePropuestaDto): Promise<Propuesta> {
-    console.log('CreadorId recibido:', dto.creadorId);
     // Verificar que el creador existe
     const creador = await this.prisma.cuenta.findUnique({
       where: { id: dto.creadorId },
     });
-    console.log('Creador encontrado:', creador);
     if (!creador) {
       throw new HttpException(
         `Creador no encontrado con ID: ${dto.creadorId}`,
@@ -103,12 +101,6 @@ export class PropuestasService {
     }
 
     const { categoriaIds = [], actividades = [], ...data } = dto;
-    console.log(
-      'Actividades recibidas:',
-      actividades,
-      'Length:',
-      actividades.length,
-    );
 
     // Crear propuesta con actividades
     return this.prisma.propuesta.create({
@@ -140,7 +132,6 @@ export class PropuestasService {
   }
 
   async update(id: number, dto: UpdatePropuestaDto): Promise<Propuesta> {
-    console.log('DTO recibido:', dto);
     const actual = await this.prisma.propuesta.findUnique({ where: { id } });
     if (!actual || !actual.isActive || actual.deletedAt) {
       throw new HttpException('Propuesta no encontrada', HttpStatus.NOT_FOUND);
@@ -150,19 +141,15 @@ export class PropuestasService {
 
     // Handle both title/titulo and description/descripcion for propuesta
     if (typeof dto.titulo !== 'undefined') {
-      console.log('Actualizando titulo:', dto.titulo);
       data.titulo = dto.titulo;
     }
     if (typeof (dto as any).title !== 'undefined') {
-      console.log('Actualizando title:', (dto as any).title);
       data.titulo = (dto as any).title;
     }
     if (typeof dto.descripcion !== 'undefined') {
-      console.log('Actualizando descripcion:', dto.descripcion);
       data.descripcion = dto.descripcion;
     }
     if (typeof (dto as any).description !== 'undefined') {
-      console.log('Actualizando description:', (dto as any).description);
       data.descripcion = (dto as any).description;
     }
     // comunidadId (opcional en update): validar si se envía
@@ -177,8 +164,6 @@ export class PropuestasService {
       data.comunidad = { connect: { id: dto.comunidadId } };
     }
 
-    console.log('Data para actualizar propuesta:', data);
-
     // handle categorias replacement if provided
     if (typeof dto.categoriaIds !== 'undefined') {
       data.categorias = {
@@ -191,8 +176,6 @@ export class PropuestasService {
 
     // handle actividades replace-all on update
     if (dto.actividades) {
-      console.log('Reemplazando todas las actividades de la propuesta:', id);
-
       await this.prisma.$transaction(async (tx) => {
         // Soft-delete all existing actividades for this propuesta
         await tx.actividad.updateMany({
@@ -238,11 +221,9 @@ export class PropuestasService {
     }
 
     if (Object.keys(data).length === 0 && !dto.actividades) {
-      console.log('No hay cambios, devolviendo propuesta actual');
       return this.findOne(id);
     }
 
-    console.log('Actualizando propuesta con data:', data);
     const updated = await this.prisma.propuesta.update({
       where: { id },
       data,
@@ -253,7 +234,6 @@ export class PropuestasService {
         asistentes: { include: { cuenta: true } },
       },
     });
-    console.log('Propuesta actualizada');
 
     return updated;
   }
