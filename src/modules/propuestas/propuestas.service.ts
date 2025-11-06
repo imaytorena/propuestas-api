@@ -15,8 +15,25 @@ export class PropuestasService {
 
   async getAll(q: ListAllPropuestasQuery): Promise<Propuesta[]> {
     const limit = Math.min(q.limit ?? 10, 100);
+
+    // Parse comunidadId from query (can arrive as string or number)
+    const raw = (q as unknown as { comunidadId?: unknown }).comunidadId;
+    let comunidadId: number | undefined = undefined;
+    if (typeof raw === 'string') {
+      const n = parseInt(raw, 10);
+      if (!Number.isNaN(n)) comunidadId = n;
+    } else if (typeof raw === 'number' && !Number.isNaN(raw)) {
+      comunidadId = Math.floor(raw);
+    }
+
+    const where: Prisma.PropuestaWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      ...(typeof comunidadId === 'number' ? { comunidadId } : {}),
+    };
+
     return this.prisma.propuesta.findMany({
-      where: { isActive: true, deletedAt: null },
+      where,
       include: {
         categorias: true,
         creador: true,

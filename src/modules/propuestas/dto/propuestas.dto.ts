@@ -39,6 +39,7 @@ export class UpdatePropuestaDto {
 
 export class ListAllPropuestasQuery {
   limit?: number;
+  comunidadId?: number;
 }
 
 export class CreateAsistenteDto {
