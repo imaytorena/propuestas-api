@@ -20,6 +20,10 @@ import {
   RecommendComunidadesDto,
 } from './dto/comunidades.dto';
 import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
+import {
+  OptionalAuthGuard,
+  RequestMaybeUser,
+} from '../../auth/optional-auth.guard';
 
 @ApiTags('comunidades')
 @Controller('comunidades')
@@ -47,6 +51,7 @@ export class ComunidadesController {
 
   // Public Geo endpoint: GET /comunidades/map
   @Get('map')
+  @UseGuards(OptionalAuthGuard)
   getMap(
     @Query('municipioId') municipioId?: string,
     @Query('coloniaId') coloniaId?: string,
@@ -55,6 +60,7 @@ export class ComunidadesController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
     @Query('categorias') categorias?: string,
+    @Req() req?: RequestMaybeUser,
   ) {
     const parsed = {
       municipioId: municipioId ? parseInt(municipioId, 10) : undefined,
@@ -69,6 +75,7 @@ export class ComunidadesController {
             .map((s) => s.trim())
             .filter((s) => s.length > 0)
         : undefined,
+      cuentaId: req?.user?.id,
     } as const;
     return this.service.getMapGeo(parsed);
   }
@@ -82,16 +89,17 @@ export class ComunidadesController {
   @Post(':id/unirse')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
-  join(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: RequestWithUser,
-  ) {
+  join(@Param('id', ParseIntPipe) id: number, @Req() req: RequestWithUser) {
     return this.service.join(id, req.user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  @UseGuards(OptionalAuthGuard)
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req?: RequestMaybeUser,
+  ) {
+    return this.service.findOne(id, req?.user?.id);
   }
 
   @Put(':id')

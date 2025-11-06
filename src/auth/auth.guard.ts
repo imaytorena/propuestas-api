@@ -21,6 +21,10 @@ export interface RequestWithUser extends Request {
   user: JwtPayload;
 }
 
+export interface RequestMaybeUser extends Request {
+  user?: JwtPayload;
+}
+
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 

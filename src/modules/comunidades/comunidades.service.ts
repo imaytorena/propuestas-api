@@ -112,10 +112,15 @@ export class ComunidadesService {
     return { data, meta: { total, page, limit, pageCount } };
   }
 
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, cuentaId?: number): Promise<any> {
     const comunidad = await this.prisma.comunidad.findFirst({
       where: { id, isActive: true, deletedAt: null },
       include: {
+        miembros: {
+          include: {
+            cuenta: true,
+          },
+        },
         colonia: { include: { municipio: true } },
         propuestas: {
           where: { isActive: true, deletedAt: null },
@@ -124,11 +129,33 @@ export class ComunidadesService {
         },
       },
     });
+
     if (!comunidad) {
       throw new HttpException('Comunidad no encontrada', HttpStatus.NOT_FOUND);
     }
+
+    // Flags for UI
+    const esCreador =
+      typeof cuentaId === 'number' && comunidad.creadorId === cuentaId;
+    let esMiembro = false;
+    if (typeof cuentaId === 'number') {
+      const relacion = await this.prisma.comunidadMiembro.findFirst({
+        where: {
+          comunidadId: comunidad.id,
+          cuentaId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      esMiembro = !!relacion;
+    }
+
     return {
       ...comunidad,
+      esCreador,
+      esMiembro,
+      puedeUnirse: !(esCreador || esMiembro),
       polygon: {
         type: 'Feature' as const,
         properties: {
@@ -188,6 +215,7 @@ export class ComunidadesService {
     creadorId?: number;
     nombre?: string;
     categorias?: string[];
+    cuentaId?: number;
   }): Promise<{
     data: {
       type: 'Feature';
@@ -196,6 +224,10 @@ export class ComunidadesService {
         nombre: string;
         municipio: string | undefined;
         coloniaId: number | null;
+        categoria?: string | null;
+        esCreador?: boolean;
+        esMiembro?: boolean;
+        puedeUnirse?: boolean;
       };
       geometry: unknown;
     }[];
@@ -238,7 +270,13 @@ export class ComunidadesService {
 
     const comunidades = await this.prisma.comunidad.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        nombre: true,
+        coloniaId: true,
+        categoria: true,
+        creadorId: true,
+        poligono: true,
         colonia: { include: { municipio: true } },
       },
       orderBy: { id: 'asc' },
@@ -251,21 +289,49 @@ export class ComunidadesService {
     const items = hasMore ? comunidades.slice(0, takeNum) : comunidades;
     const nextCursor = hasMore ? String(items[items.length - 1].id) : null;
 
+    // Build membership set if cuentaId provided
+    let memberSet: Set<number> | null = null;
+    if (typeof params.cuentaId === 'number' && items.length > 0) {
+      const memberships = await this.prisma.comunidadMiembro.findMany({
+        where: {
+          cuentaId: params.cuentaId,
+          isActive: true,
+          deletedAt: null,
+          comunidadId: { in: items.map((c) => c.id) },
+        },
+        select: { comunidadId: true },
+      });
+      memberSet = new Set<number>(memberships.map((m) => m.comunidadId));
+    }
+
     return {
-      data: items.map((c) => ({
-        type: 'Feature' as const,
-        properties: {
-          id: c.id,
-          nombre: c.nombre,
-          municipio: c.colonia?.municipio?.nombre,
-          categoria: c.categoria,
-          coloniaId: c.coloniaId ?? null,
-        },
-        geometry: {
-          type: 'Polygon', // o MultiPolygon, LineString, etc.
-          coordinates: c.poligono as unknown,
-        },
-      })),
+      data: items.map((c) => {
+        const esCreador =
+          typeof params.cuentaId === 'number' &&
+          c.creadorId === params.cuentaId;
+        const esMiembro = memberSet ? memberSet.has(c.id) : false;
+        const puedeUnirse =
+          typeof params.cuentaId === 'number'
+            ? !(esCreador || esMiembro)
+            : undefined;
+        return {
+          type: 'Feature' as const,
+          properties: {
+            id: c.id,
+            nombre: c.nombre,
+            municipio: c.colonia?.municipio?.nombre,
+            categoria: c.categoria ?? null,
+            coloniaId: c.coloniaId ?? null,
+            ...(typeof params.cuentaId === 'number'
+              ? { esCreador, esMiembro, puedeUnirse }
+              : {}),
+          },
+          geometry: {
+            type: 'Polygon', // o MultiPolygon, LineString, etc.
+            coordinates: c.poligono as unknown,
+          },
+        };
+      }),
       nextCursor,
       hasMore,
       count: items.length,

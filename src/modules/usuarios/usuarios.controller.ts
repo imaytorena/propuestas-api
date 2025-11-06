@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { Prisma, Usuario as UsuarioModel } from '@prisma/client';
 import { ApiBearerAuth } from '@nestjs/swagger';
