@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
   engineType      = "library"
-  previewFeatures = ["views", "fullTextSearchPostgres"]
+  previewFeatures = ["views", "fullTextSearchPostgres", "filterJson"]
 }
 
 datasource db {
@@ -93,30 +93,32 @@ model Comunidad {
   creador           Cuenta      @relation("CreadorComunidad", fields: [creadorId], references: [id])
   ideas             Idea[]
   propuestas        Propuesta[]
+  miembros          ComunidadMiembro[]
 
   @@map("comunidades")
 }
 
 model Cuenta {
-  id                 Int         @id @default(autoincrement())
-  comunidadId        Int?        @unique @map("comunidad_id")
-  usuarioId          Int?        @unique @map("usuario_id")
+  id                 Int                 @id @default(autoincrement())
+  comunidadId        Int?                @unique @map("comunidad_id")
+  usuarioId          Int?                @unique @map("usuario_id")
   // access
-  uuid               String      @default(dbgenerated("gen_random_uuid()")) @map("uuid") @db.Uuid
-  identificador      String      @unique @db.VarChar(32)
-  correo             String?     @unique @db.VarChar(255)
-  codigo             String?     @unique @db.VarChar(9)
-  password           String      @db.VarChar(255)
+  uuid               String              @default(dbgenerated("gen_random_uuid()")) @map("uuid") @db.Uuid
+  identificador      String              @unique @db.VarChar(32)
+  correo             String?             @unique @db.VarChar(255)
+  codigo             String?             @unique @db.VarChar(9)
+  password           String              @db.VarChar(255)
   // info
-  nombre             String?     @db.VarChar(255)
-  apellido           String?     @db.VarChar(255)
+  nombre             String?             @db.VarChar(255)
+  apellido           String?             @db.VarChar(255)
   // relations
-  comunidad          Comunidad?  @relation("ComunidadCuenta", fields: [comunidadId], references: [id])
-  usuario            Usuario?    @relation("UsuarioCuenta", fields: [usuarioId], references: [id])
-  asistentes         Asistente[] @relation("AsistenteCuenta")
-  comunidadesCreadas Comunidad[] @relation("CreadorComunidad")
-  propuestas         Propuesta[] @relation("PropuestasCreadas")
-  actividades        Actividad[] @relation("ActividadesCreadas")
+  comunidad          Comunidad?          @relation("ComunidadCuenta", fields: [comunidadId], references: [id])
+  usuario            Usuario?            @relation("UsuarioCuenta", fields: [usuarioId], references: [id])
+  asistentes         Asistente[]         @relation("AsistenteCuenta")
+  comunidadesCreadas Comunidad[]         @relation("CreadorComunidad")
+  propuestas         Propuesta[]         @relation("PropuestasCreadas")
+  actividades        Actividad[]         @relation("ActividadesCreadas")
+  comunidadesMiembro ComunidadMiembro[]
 
   @@map("cuentas")
 }
@@ -188,8 +190,6 @@ model Propuesta {
   comunidadId    Int?      @map("comunidad_id")
   isActive       Boolean   @default(true) @map("is_active")
   createdAt      DateTime  @default(now()) @map("created_at")
-  fechaActividad DateTime  @default(now()) @updatedAt @map("fecha_actividad")
-  horaActividad  String?   @map("hora_actividad") @db.VarChar(5)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
 
@@ -207,6 +207,10 @@ model Actividad {
   id          Int       @id @default(autoincrement())
   nombre      String    @db.VarChar(255)
   descripcion String    @db.Text
+  // nueva fecha obligatoria de la actividad
+  fecha       DateTime  @map("fecha")
+  // horario opcional (texto)
+  horario     String?   @map("horario") @db.VarChar(255)
   creadorId   Int       @map("creador_id")
   propuestaId Int?      @map("propuesta_id")
   isActive    Boolean   @default(true) @map("is_active")
@@ -262,6 +266,23 @@ model Actividad {
 //
 //  @@map("multimedias")
 //}
+
+model ComunidadMiembro {
+  id          Int       @id @default(autoincrement())
+  comunidadId Int       @map("comunidad_id")
+  cuentaId    Int       @map("cuenta_id")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // relations
+  comunidad   Comunidad @relation(fields: [comunidadId], references: [id])
+  cuenta      Cuenta    @relation(fields: [cuentaId], references: [id])
+
+  @@unique([comunidadId, cuentaId])
+  @@map("comunidad_miembros")
+}
 
 // model Representante {
 //  id          Int       @id @default(autoincrement())

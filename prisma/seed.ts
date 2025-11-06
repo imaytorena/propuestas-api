@@ -10,6 +10,89 @@ const JALISCO_ESTADO_ID = 14;
 // Chunk size for createMany to avoid exceeding parameter limits
 const CHUNK_SIZE = 1000;
 
+// Convert various geometry shapes to the expected [{ lat, lng }] array
+// function toLatLngArray(
+//   geometry: any,
+// ): Array<{ lat: number; lng: number }> | null {
+//   if (!geometry) return null;
+//   try {
+//     // If it's already an array of {lat,lng}
+//     if (Array.isArray(geometry) && geometry.length > 0) {
+//       const first = geometry[0];
+//       if (
+//         typeof first === 'object' && first != null &&
+//         'lat' in first && 'lng' in first
+//       ) {
+//         return geometry as Array<{ lat: number; lng: number }>;
+//       }
+//       // If it's an array of [lng,lat]
+//       if (Array.isArray(first) && first.length >= 2 &&
+//           typeof first[0] === 'number' && typeof first[1] === 'number') {
+//         const arr = (geometry as Array<[number, number]>).map((p) => ({
+//           lng: p[0],
+//           lat: p[1],
+//         }));
+//         return normalizeRing(arr);
+//       }
+//     }
+//
+//     // If it looks like GeoJSON
+//     if (typeof geometry === 'object' && geometry.type && geometry.coordinates) {
+//       const type = geometry.type;
+//       const coords = geometry.coordinates;
+//       if (type === 'Polygon' && Array.isArray(coords) && coords.length > 0) {
+//         // coords: LinearRings[], take exterior ring
+//         const ring = coords[0] as Array<[number, number]>;
+//         const arr = ring.map((p) => ({ lng: p[0], lat: p[1] }));
+//         return normalizeRing(arr);
+//       }
+//       if (
+//         type === 'MultiPolygon' &&
+//         Array.isArray(coords) &&
+//         coords.length > 0 &&
+//         Array.isArray(coords[0]) &&
+//         (coords[0] as any[]).length > 0
+//       ) {
+//         const ring = (coords[0] as Array<Array<[number, number]>>)[0];
+//         const arr = ring.map((p) => ({ lng: p[0], lat: p[1] }));
+//         return normalizeRing(arr);
+//       }
+//     }
+//   } catch (e) {
+//     // fallthrough
+//   }
+//   return null;
+// }
+
+// function normalizeRing(
+//   arr: Array<{ lat: number; lng: number }>,
+// ): Array<{ lat: number; lng: number }> {
+//   // Remove duplicated closing point if present
+//   if (arr.length > 1) {
+//     const first = arr[0];
+//     const last = arr[arr.length - 1];
+//     if (
+//       typeof first.lat === 'number' &&
+//       typeof first.lng === 'number' &&
+//       first.lat === last.lat &&
+//       first.lng === last.lng
+//     ) {
+//       arr = arr.slice(0, arr.length - 1);
+//     }
+//   }
+//   // Basic sanity check for ranges
+//   const filtered = arr.filter(
+//     (p) =>
+//       typeof p.lat === 'number' &&
+//       typeof p.lng === 'number' &&
+//       p.lat >= -90 &&
+//       p.lat <= 90 &&
+//       p.lng >= -180 &&
+//       p.lng <= 180,
+//   );
+//   return filtered;
+// }
+
 async function main() {
   const jsonPath = path.resolve(__dirname, 'zmg-colonias.json');
   if (!fs.existsSync(jsonPath)) {
@@ -30,7 +113,8 @@ async function main() {
   // 1) Ensure a generic admin Cuenta + Usuario
   const adminIdentificador = 'admin_generico';
   const adminCorreo = 'admin@example.com';
-  const adminPassword = '$2b$10$5bqkl582NrZ4kGo/k.4E.ejPGXpzPbs/KjATfTEjobNEg8DSpil2y'; // NOTE: plain text for seed/demo purposes
+  const adminPassword =
+    '$2b$10$5bqkl582NrZ4kGo/k.4E.ejPGXpzPbs/KjATfTEjobNEg8DSpil2y'; // NOTE: plain text for seed/demo purposes
 
   // Create Cuenta first (usuarioId is optional)
   const adminCuenta = await prisma.cuenta.upsert({
@@ -102,6 +186,9 @@ async function main() {
     coordenadas: Prisma.InputJsonValue | null;
   }> = [];
 
+  // Geometry by key (NOMBRE|municipioId) stored as raw GeoJSON geometry
+  const geomByKey = new Map<string, Prisma.InputJsonValue>();
+
   let createdMunicipios = 0;
   let deduped = 0;
 
@@ -134,13 +221,21 @@ async function main() {
     }
     seenKeys.add(key);
 
+    // Store raw GeoJSON geometry by key for Comunidad.poligono
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
+    const rawGeometry = (f as any)['geometry']['coordinates'] ?? null;
+    if (rawGeometry) {
+      geomByKey.set(key, rawGeometry as unknown as Prisma.InputJsonValue);
+    }
+
     pending.push({
       estadoId: JALISCO_ESTADO_ID,
       municipioId: muni.id,
       cveMunicipio: muni.cve ?? undefined, // schema has default "", so can be omitted
       cve: '', // unknown in source; leave empty string
       nombre,
-      coordenadas: f.geometry ?? null,
+      // Stop storing raw geometry in Colonia.coordenadas; leave null for migration
+      coordenadas: null,
     });
   }
 
@@ -196,6 +291,7 @@ async function main() {
     descripcion: string;
     coloniaId: number;
     creadorId: number;
+    poligono?: Prisma.InputJsonValue;
   }> = [];
 
   for (const col of colonias) {
@@ -203,12 +299,15 @@ async function main() {
     const muniName = col.municipio?.nombre ?? '';
     const nombre = `${col.nombre}`;
     const descripcion = `${col.nombre}${muniName ? ', ' + muniName : ''}`;
+    const key = `${String(col.nombre).trim().toUpperCase()}|${col.municipioId}`;
+    const poligono = geomByKey.get(key);
     pendingComus.push({
       cuentaId: adminCuentaFinal.id,
       nombre,
       descripcion,
       coloniaId: col.id,
       creadorId: adminCuentaFinal.id,
+      ...(poligono !== undefined ? { poligono } : {}),
     });
   }
 
@@ -225,87 +324,169 @@ async function main() {
 
   console.log(`Done. Inserted total comunidades: ${insertedComus}`);
 
+  // 3b) Backfill poligono for existing Comunidades where null
+  let updatedExisting = 0;
+  for (let i = 0; i < colonias.length; i += CHUNK_SIZE) {
+    const chunk = colonias.slice(i, i + CHUNK_SIZE);
+    for (const col of chunk) {
+      const key = `${String(col.nombre).trim().toUpperCase()}|${col.municipioId}`;
+      const poligono = geomByKey.get(key);
+      if (!poligono) continue;
+      const res = await prisma.comunidad.updateMany({
+        where: { coloniaId: col.id, poligono: { equals: Prisma.DbNull } },
+        data: { poligono },
+      });
+      updatedExisting += res.count;
+    }
+    console.log(
+      `Updated existing comunidades poligono chunk ${i / CHUNK_SIZE + 1}`,
+    );
+  }
+  console.log(
+    `Backfilled poligono for existing comunidades: ${updatedExisting}`,
+  );
+
+  // 3c-a) Ensure simple string categoria default 'Vecinos' for ZMG comunidades (idempotent)
+  const updatedSimpleCat = await prisma.comunidad.updateMany({
+    where: { categoria: null, colonia: { estadoId: JALISCO_ESTADO_ID } },
+    data: { categoria: 'Vecinos' },
+  });
+  console.log(
+    `Updated comunidades.categoria to 'Vecinos' (simple field): ${updatedSimpleCat.count}`,
+  );
+
+  // 3c) Ensure default Categoria "Vecinos" for ZMG comunidades (idempotent)
+  const zmgComunidades = await prisma.comunidad.findMany({
+    where: {
+      colonia: { estadoId: JALISCO_ESTADO_ID },
+      categorias: {
+        none: { nombre: { equals: 'Vecinos', mode: 'insensitive' } },
+      },
+    },
+    select: { id: true },
+  });
+
+  console.log(
+    `ZMG comunidades missing 'Vecinos' categoria: ${zmgComunidades.length}`,
+  );
+
+  const catData: { nombre: string; comunidadId: number }[] = zmgComunidades.map(
+    (c) => ({
+      nombre: 'Vecinos',
+      comunidadId: c.id,
+    }),
+  );
+
+  for (let i = 0; i < catData.length; i += CHUNK_SIZE) {
+    const chunk = catData.slice(i, i + CHUNK_SIZE);
+    if (chunk.length === 0) continue;
+    const res = await prisma.categoria.createMany({ data: chunk });
+    console.log(
+      `Inserted default categorias chunk ${i / CHUNK_SIZE + 1}: ${res.count}`,
+    );
+  }
+
   await prisma.idea.createMany({
     data: [
       {
-        titulo: "Más áreas verdes",
-        descripcion: "Implementar parques pequeños en terrenos baldíos para dar oxígeno y espacios de recreación."
+        titulo: 'Más áreas verdes',
+        descripcion:
+          'Implementar parques pequeños en terrenos baldíos para dar oxígeno y espacios de recreación.',
       },
       {
-        titulo: "Iluminación pública eficiente",
-        descripcion: "Colocar luminarias LED que consuman menos y den mayor seguridad durante la noche."
+        titulo: 'Iluminación pública eficiente',
+        descripcion:
+          'Colocar luminarias LED que consuman menos y den mayor seguridad durante la noche.',
       },
       {
-        titulo: "Banquetas accesibles",
-        descripcion: "Adaptar las aceras para personas con discapacidad y adultos mayores."
+        titulo: 'Banquetas accesibles',
+        descripcion:
+          'Adaptar las aceras para personas con discapacidad y adultos mayores.',
       },
       {
-        titulo: "Ciclovías seguras",
-        descripcion: "Diseñar ciclovías protegidas del tráfico para fomentar el uso de bicicleta."
+        titulo: 'Ciclovías seguras',
+        descripcion:
+          'Diseñar ciclovías protegidas del tráfico para fomentar el uso de bicicleta.',
       },
       {
-        titulo: "Árboles en calles principales",
-        descripcion: "Plantar árboles nativos para sombra, frescura y mejora de la calidad del aire."
+        titulo: 'Árboles en calles principales',
+        descripcion:
+          'Plantar árboles nativos para sombra, frescura y mejora de la calidad del aire.',
       },
       {
-        titulo: "Mantenimiento de baches",
-        descripcion: "Implementar un programa de reparación rápida de baches para mejorar la circulación."
+        titulo: 'Mantenimiento de baches',
+        descripcion:
+          'Implementar un programa de reparación rápida de baches para mejorar la circulación.',
       },
       {
-        titulo: "Zonas de juego infantil",
-        descripcion: "Construir pequeños espacios con juegos seguros para niñas y niños."
+        titulo: 'Zonas de juego infantil',
+        descripcion:
+          'Construir pequeños espacios con juegos seguros para niñas y niños.',
       },
       {
-        titulo: "Basureros estratégicos",
-        descripcion: "Colocar contenedores de basura en puntos clave para evitar acumulación en las calles."
+        titulo: 'Basureros estratégicos',
+        descripcion:
+          'Colocar contenedores de basura en puntos clave para evitar acumulación en las calles.',
       },
       {
-        titulo: "Pintura vial clara",
-        descripcion: "Renovar constantemente la pintura de pasos peatonales y señalización."
+        titulo: 'Pintura vial clara',
+        descripcion:
+          'Renovar constantemente la pintura de pasos peatonales y señalización.',
       },
       {
-        titulo: "Cruces peatonales elevados",
-        descripcion: "Colocar cruces peatonales elevados en avenidas con alto tráfico para mayor seguridad."
+        titulo: 'Cruces peatonales elevados',
+        descripcion:
+          'Colocar cruces peatonales elevados en avenidas con alto tráfico para mayor seguridad.',
       },
       {
-        titulo: "Jardineras comunitarias",
-        descripcion: "Fomentar que vecinos adopten jardineras con plantas resistentes y decorativas."
+        titulo: 'Jardineras comunitarias',
+        descripcion:
+          'Fomentar que vecinos adopten jardineras con plantas resistentes y decorativas.',
       },
       {
-        titulo: "Rutas de transporte limpias",
-        descripcion: "Exigir limpieza y mantenimiento en paradas y unidades de transporte público."
+        titulo: 'Rutas de transporte limpias',
+        descripcion:
+          'Exigir limpieza y mantenimiento en paradas y unidades de transporte público.',
       },
       {
-        titulo: "Calles peatonales",
-        descripcion: "Designar algunas calles del centro como exclusivas para peatones."
+        titulo: 'Calles peatonales',
+        descripcion:
+          'Designar algunas calles del centro como exclusivas para peatones.',
       },
       {
-        titulo: "Mantenimiento de drenaje",
-        descripcion: "Evitar inundaciones con limpieza preventiva del alcantarillado."
+        titulo: 'Mantenimiento de drenaje',
+        descripcion:
+          'Evitar inundaciones con limpieza preventiva del alcantarillado.',
       },
       {
-        titulo: "Estaciones de reciclaje",
-        descripcion: "Colocar puntos de reciclaje en zonas concurridas para fomentar el cuidado ambiental."
+        titulo: 'Estaciones de reciclaje',
+        descripcion:
+          'Colocar puntos de reciclaje en zonas concurridas para fomentar el cuidado ambiental.',
       },
       {
-        titulo: "Murales comunitarios",
-        descripcion: "Impulsar proyectos artísticos en bardas para embellecer y prevenir grafitis."
+        titulo: 'Murales comunitarios',
+        descripcion:
+          'Impulsar proyectos artísticos en bardas para embellecer y prevenir grafitis.',
       },
       {
-        titulo: "Rampas en esquinas",
-        descripcion: "Colocar rampas en cada esquina para accesibilidad universal."
+        titulo: 'Rampas en esquinas',
+        descripcion:
+          'Colocar rampas en cada esquina para accesibilidad universal.',
       },
       {
-        titulo: "Parquímetros inteligentes",
-        descripcion: "Instalar parquímetros digitales que fomenten la rotación de estacionamiento."
+        titulo: 'Parquímetros inteligentes',
+        descripcion:
+          'Instalar parquímetros digitales que fomenten la rotación de estacionamiento.',
       },
       {
-        titulo: "Cámaras de seguridad",
-        descripcion: "Incrementar la seguridad en puntos conflictivos con videovigilancia."
+        titulo: 'Cámaras de seguridad',
+        descripcion:
+          'Incrementar la seguridad en puntos conflictivos con videovigilancia.',
       },
       {
-        titulo: "Campañas de limpieza",
-        descripcion: "Organizar jornadas vecinales de limpieza y pintura para fortalecer la comunidad."
+        titulo: 'Campañas de limpieza',
+        descripcion:
+          'Organizar jornadas vecinales de limpieza y pintura para fortalecer la comunidad.',
       },
     ],
   });
@@ -313,111 +494,131 @@ async function main() {
   await prisma.propuesta.createMany({
     data: [
       {
-        titulo: "Clínicas comunitarias",
-        descripcion: "Construir y mantener clínicas locales con atención médica básica accesible para todos.",
+        titulo: 'Clínicas comunitarias',
+        descripcion:
+          'Construir y mantener clínicas locales con atención médica básica accesible para todos.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Programas de becas",
-        descripcion: "Impulsar apoyos educativos para niños y jóvenes en situación vulnerable.",
+        titulo: 'Programas de becas',
+        descripcion:
+          'Impulsar apoyos educativos para niños y jóvenes en situación vulnerable.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Centros culturales",
-        descripcion: "Fomentar espacios para talleres artísticos, lectura y actividades recreativas.",
+        titulo: 'Centros culturales',
+        descripcion:
+          'Fomentar espacios para talleres artísticos, lectura y actividades recreativas.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Huertos urbanos",
-        descripcion: "Promover huertos comunitarios para autoconsumo y educación ambiental.",
+        titulo: 'Huertos urbanos',
+        descripcion:
+          'Promover huertos comunitarios para autoconsumo y educación ambiental.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Conectividad gratuita",
-        descripcion: "Instalar puntos de internet gratuito en plazas y parques públicos.",
+        titulo: 'Conectividad gratuita',
+        descripcion:
+          'Instalar puntos de internet gratuito en plazas y parques públicos.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Actividades deportivas",
-        descripcion: "Organizar torneos y clases gratuitas de deportes para jóvenes y adultos.",
+        titulo: 'Actividades deportivas',
+        descripcion:
+          'Organizar torneos y clases gratuitas de deportes para jóvenes y adultos.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Espacios seguros para mujeres",
-        descripcion: "Crear zonas seguras y líneas de ayuda para prevenir violencia de género.",
+        titulo: 'Espacios seguros para mujeres',
+        descripcion:
+          'Crear zonas seguras y líneas de ayuda para prevenir violencia de género.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Bibliotecas digitales",
-        descripcion: "Ofrecer acceso a computadoras e internet para investigación y educación.",
+        titulo: 'Bibliotecas digitales',
+        descripcion:
+          'Ofrecer acceso a computadoras e internet para investigación y educación.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Apoyo a emprendedores",
-        descripcion: "Otorgar microcréditos y capacitaciones a pequeños negocios locales.",
+        titulo: 'Apoyo a emprendedores',
+        descripcion:
+          'Otorgar microcréditos y capacitaciones a pequeños negocios locales.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Educación ambiental",
-        descripcion: "Implementar campañas escolares y vecinales para el cuidado del medio ambiente.",
+        titulo: 'Educación ambiental',
+        descripcion:
+          'Implementar campañas escolares y vecinales para el cuidado del medio ambiente.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Transporte eficiente",
-        descripcion: "Mejorar rutas de transporte público con horarios accesibles y unidades modernas.",
+        titulo: 'Transporte eficiente',
+        descripcion:
+          'Mejorar rutas de transporte público con horarios accesibles y unidades modernas.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Programas contra adicciones",
-        descripcion: "Ofrecer orientación, talleres y acompañamiento a jóvenes en riesgo.",
+        titulo: 'Programas contra adicciones',
+        descripcion:
+          'Ofrecer orientación, talleres y acompañamiento a jóvenes en riesgo.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Guarderías comunitarias",
-        descripcion: "Dar apoyo a madres y padres trabajadores con espacios seguros para sus hijos.",
+        titulo: 'Guarderías comunitarias',
+        descripcion:
+          'Dar apoyo a madres y padres trabajadores con espacios seguros para sus hijos.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Parques incluyentes",
-        descripcion: "Diseñar áreas recreativas accesibles para personas con discapacidad.",
+        titulo: 'Parques incluyentes',
+        descripcion:
+          'Diseñar áreas recreativas accesibles para personas con discapacidad.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Bancos de alimentos",
-        descripcion: "Recolectar y distribuir alimentos en buen estado para familias necesitadas.",
+        titulo: 'Bancos de alimentos',
+        descripcion:
+          'Recolectar y distribuir alimentos en buen estado para familias necesitadas.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Centros de capacitación laboral",
-        descripcion: "Enseñar oficios y habilidades digitales para mejorar oportunidades de empleo.",
+        titulo: 'Centros de capacitación laboral',
+        descripcion:
+          'Enseñar oficios y habilidades digitales para mejorar oportunidades de empleo.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Movilidad sustentable",
-        descripcion: "Fomentar transporte en bicicleta y patines eléctricos con estaciones seguras.",
+        titulo: 'Movilidad sustentable',
+        descripcion:
+          'Fomentar transporte en bicicleta y patines eléctricos con estaciones seguras.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Protección animal",
-        descripcion: "Crear campañas de esterilización y adopción de mascotas callejeras.",
+        titulo: 'Protección animal',
+        descripcion:
+          'Crear campañas de esterilización y adopción de mascotas callejeras.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Eventos comunitarios",
-        descripcion: "Realizar ferias, mercados y festivales para fortalecer la unión vecinal.",
+        titulo: 'Eventos comunitarios',
+        descripcion:
+          'Realizar ferias, mercados y festivales para fortalecer la unión vecinal.',
         creadorId: adminUsuario.id,
       },
       {
-        titulo: "Atención a adultos mayores",
-        descripcion: "Ofrecer programas de acompañamiento, recreación y apoyo en salud.",
+        titulo: 'Atención a adultos mayores',
+        descripcion:
+          'Ofrecer programas de acompañamiento, recreación y apoyo en salud.',
         creadorId: adminUsuario.id,
-      }
+      },
     ],
   });
 
-  console.log("✅ Seed de propuestas insertado correctamente.");
+  console.log('✅ Seed de propuestas insertado correctamente.');
 
-  console.log("✅ Seed de ideas insertado correctamente.");
+  console.log('✅ Seed de ideas insertado correctamente.');
 }
 
 main()

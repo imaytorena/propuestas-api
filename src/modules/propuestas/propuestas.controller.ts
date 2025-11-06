@@ -7,7 +7,8 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Query, Req,
+  Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -43,10 +44,7 @@ export class PropuestasController {
   @Get(':id')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
-  findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: RequestWithUser,
-  ) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: RequestWithUser) {
     return this.propuestasService.findOne(id, req.user.id);
   }
 
@@ -75,7 +73,11 @@ export class PropuestasController {
     @Body() dto: CreateAsistenteDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.propuestasService.createAsistencia(propuestaId, req.user.id, dto);
+    return this.propuestasService.createAsistencia(
+      propuestaId,
+      req.user.id,
+      dto,
+    );
   }
 
   @Put(':id/asistencia')
@@ -86,6 +88,10 @@ export class PropuestasController {
     @Body() dto: UpdateAsistenteDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.propuestasService.updateAsistencia(propuestaId, req.user.id, dto);
+    return this.propuestasService.updateAsistencia(
+      propuestaId,
+      req.user.id,
+      dto,
+    );
   }
 }

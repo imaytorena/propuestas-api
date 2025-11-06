@@ -19,7 +19,8 @@ export class CreateActividadDto {
   nombre: string;
   descripcion: string;
   creadorId: number;
-  propuestaId?: number;
+  fecha: Date;
+  horario?: string;
 }
 
 export class UpdateActividadDto {
@@ -42,7 +43,10 @@ export class ActividadesController {
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
-  create(@Body() createActividadDto: CreateActividadDto, @Req() req: RequestWithUser) {
+  create(
+    @Body() createActividadDto: CreateActividadDto,
+    @Req() req: RequestWithUser,
+  ) {
     createActividadDto.creadorId = req.user.id;
     return this.actividadesService.create(createActividadDto);
   }

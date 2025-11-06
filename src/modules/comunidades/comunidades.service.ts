@@ -5,11 +5,48 @@ import {
   CreateComunidadDto,
   ListComunidadesQuery,
   UpdateComunidadDto,
+  RecommendComunidadesDto,
 } from './dto/comunidades.dto';
 
 @Injectable()
 export class ComunidadesService {
   constructor(private prisma: PrismaService) {}
+
+  async join(comunidadId: number, cuentaId: number) {
+    // Validar comunidad
+    const comunidad = await this.prisma.comunidad.findFirst({
+      where: { id: comunidadId, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!comunidad) {
+      throw new HttpException('Comunidad no encontrada', HttpStatus.NOT_FOUND);
+    }
+
+    // Buscar si ya existe relación
+    const existing = await this.prisma.comunidadMiembro.findFirst({
+      where: { comunidadId, cuentaId },
+    });
+
+    if (existing) {
+      if (existing.isActive && !existing.deletedAt) {
+        throw new HttpException(
+          'Ya eres miembro de esta comunidad',
+          HttpStatus.CONFLICT,
+        );
+      }
+      // Reactivar membresía
+      const reactivated = await this.prisma.comunidadMiembro.update({
+        where: { id: existing.id },
+        data: { isActive: true, deletedAt: null },
+      });
+      return { status: 'reactivated', miembro: reactivated };
+    }
+
+    const miembro = await this.prisma.comunidadMiembro.create({
+      data: { comunidadId, cuentaId },
+    });
+    return { status: 'created', miembro };
+  }
 
   async getAll(
     q: ListComunidadesQuery,
@@ -75,14 +112,37 @@ export class ComunidadesService {
     return { data, meta: { total, page, limit, pageCount } };
   }
 
-  async findOne(id: number): Promise<Comunidad> {
+  async findOne(id: number): Promise<any> {
     const comunidad = await this.prisma.comunidad.findFirst({
       where: { id, isActive: true, deletedAt: null },
+      include: {
+        colonia: { include: { municipio: true } },
+        propuestas: {
+          where: { isActive: true, deletedAt: null },
+          include: { categorias: true, actividades: true, creador: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
     if (!comunidad) {
       throw new HttpException('Comunidad no encontrada', HttpStatus.NOT_FOUND);
     }
-    return comunidad;
+    return {
+      ...comunidad,
+      polygon: {
+        type: 'Feature' as const,
+        properties: {
+          id: comunidad.id,
+          nombre: comunidad.nombre,
+          municipio: comunidad.colonia?.municipio?.nombre,
+          coloniaId: comunidad.coloniaId ?? null,
+        },
+        geometry: {
+          type: 'Polygon', // o MultiPolygon, LineString, etcomunidad.
+          coordinates: comunidad.poligono as unknown,
+        },
+      },
+    };
   }
 
   async create(data: CreateComunidadDto): Promise<Comunidad> {
@@ -118,5 +178,270 @@ export class ComunidadesService {
       where: { id },
       data: { isActive: false, deletedAt: new Date() },
     });
+  }
+
+  async getMapGeo(params: {
+    limit?: number;
+    cursorId?: number;
+    municipioId?: number;
+    coloniaId?: number;
+    creadorId?: number;
+    nombre?: string;
+    categorias?: string[];
+  }): Promise<{
+    data: {
+      type: 'Feature';
+      properties: {
+        id: number;
+        nombre: string;
+        municipio: string | undefined;
+        coloniaId: number | null;
+      };
+      geometry: unknown;
+    }[];
+    nextCursor: string | null;
+    hasMore: boolean;
+    count: number;
+  }> {
+    const takeNum = Math.min(Math.max(params.limit ?? 100, 1), 1000);
+    const where: Prisma.ComunidadWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      poligono: { not: Prisma.DbNull },
+      ...(typeof params.coloniaId === 'number'
+        ? { coloniaId: params.coloniaId }
+        : {}),
+      ...(typeof params.creadorId === 'number'
+        ? { creadorId: params.creadorId }
+        : {}),
+      ...(params.nombre && params.nombre.trim().length > 0
+        ? { nombre: { contains: params.nombre.trim(), mode: 'insensitive' } }
+        : {}),
+      ...(typeof params.municipioId === 'number'
+        ? { colonia: { municipioId: params.municipioId } }
+        : {}),
+      ...(Array.isArray(params.categorias) && params.categorias.length > 0
+        ? {
+            OR: params.categorias.flatMap((name) => [
+              { categoria: { equals: name, mode: 'insensitive' as const } },
+              { categorias: { some: { nombre: { equals: name, mode: 'insensitive' as const } } } },
+            ]),
+          }
+        : {}),
+    };
+
+    const comunidades = await this.prisma.comunidad.findMany({
+      where,
+      include: {
+        colonia: { include: { municipio: true } },
+      },
+      orderBy: { id: 'asc' },
+      take: takeNum + 1,
+      skip: params.cursorId ? 1 : 0,
+      cursor: params.cursorId ? { id: params.cursorId } : undefined,
+    });
+
+    const hasMore = comunidades.length > takeNum;
+    const items = hasMore ? comunidades.slice(0, takeNum) : comunidades;
+    const nextCursor = hasMore ? String(items[items.length - 1].id) : null;
+
+    return {
+      data: items.map((c) => ({
+        type: 'Feature' as const,
+        properties: {
+          id: c.id,
+          nombre: c.nombre,
+          municipio: c.colonia?.municipio?.nombre,
+          categoria: c.categoria,
+          coloniaId: c.coloniaId ?? null,
+        },
+        geometry: {
+          type: 'Polygon', // o MultiPolygon, LineString, etc.
+          coordinates: c.poligono as unknown,
+        },
+      })),
+      nextCursor,
+      hasMore,
+      count: items.length,
+    };
+  }
+
+  // Recomendaciones KNN por cercanía al centroide del geometry de entrada
+  async recommendByKnn(params: RecommendComunidadesDto): Promise<
+    {
+      id: number;
+      nombre: string;
+      coloniaId: number | null;
+      distKm: number;
+      geometry: unknown;
+    }[]
+  > {
+    const kRaw =
+      typeof params.k === 'number' && !Number.isNaN(params.k)
+        ? Math.floor(params.k)
+        : 10;
+    const k = Math.max(1, Math.min(kRaw, 100));
+
+    const geometry = (params as any)?.geometry;
+    if (!geometry || typeof geometry !== 'object' || !geometry.type) {
+      throw new HttpException(
+        'geometry (GeoJSON) es requerido',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Helpers locales para centroides y distancia
+    type Position = [number, number]; // [lng, lat]
+
+    const toRadians = (deg: number) => (deg * Math.PI) / 180;
+    const haversineKm = (a: Position, b: Position) => {
+      const R = 6371; // km
+      const dLat = toRadians(b[1] - a[1]);
+      const dLon = toRadians(b[0] - a[0]);
+      const lat1 = toRadians(a[1]);
+      const lat2 = toRadians(b[1]);
+      const sinDLat = Math.sin(dLat / 2);
+      const sinDLon = Math.sin(dLon / 2);
+      const h =
+        sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+      const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+      return R * c;
+    };
+
+    const polygonArea = (ring: Position[]): number => {
+      // Shoelace formula (expects closed or open ring). Coordinates are [lng, lat].
+      let area = 0;
+      const n = ring.length;
+      if (n < 3) return 0;
+      for (let i = 0; i < n; i++) {
+        const [x1, y1] = ring[i];
+        const [x2, y2] = ring[(i + 1) % n];
+        area += x1 * y2 - x2 * y1;
+      }
+      return Math.abs(area) / 2;
+    };
+
+    const centroidOfRing = (ring: Position[]): Position => {
+      // Centroid of polygon ring (outer) using area-weighted method
+      let x = 0;
+      let y = 0;
+      let a = 0;
+      const n = ring.length;
+      for (let i = 0; i < n; i++) {
+        const [x1, y1] = ring[i];
+        const [x2, y2] = ring[(i + 1) % n];
+        const cross = x1 * y2 - x2 * y1;
+        a += cross;
+        x += (x1 + x2) * cross;
+        y += (y1 + y2) * cross;
+      }
+      a = a / 2;
+      if (a === 0) {
+        // Fallback: average
+        const sum = ring.reduce(
+          (acc, p) => [acc[0] + p[0], acc[1] + p[1]] as Position,
+          [0, 0] as Position,
+        );
+        return [sum[0] / n, sum[1] / n];
+      }
+      return [x / (6 * a), y / (6 * a)];
+    };
+
+    const centroidOfPolygon = (coordinates: Position[][]): Position => {
+      // Use only the outer ring for centroid
+      const outer = coordinates[0];
+      return centroidOfRing(outer);
+    };
+
+    const centroidOfMultiPolygon = (coordinates: Position[][][]): Position => {
+      // Pick the largest area polygon (outer rings only)
+      let best: { area: number; c: Position } | null = null;
+      for (const poly of coordinates) {
+        const outer = poly[0];
+        const a = polygonArea(outer);
+        const c = centroidOfRing(outer);
+        if (!best || a > best.area) {
+          best = { area: a, c };
+        }
+      }
+      return best ? best.c : centroidOfRing(coordinates[0][0]);
+    };
+
+    const computeCentroid = (geom: any): Position | null => {
+      try {
+        const t = geom?.type;
+        const coords = geom?.coordinates;
+        if (t === 'Point') {
+          // GeoJSON point is [lng, lat]
+          return coords as Position;
+        }
+        if (t === 'Polygon') {
+          return centroidOfPolygon(coords as Position[][]);
+        }
+        if (t === 'MultiPolygon') {
+          return centroidOfMultiPolygon(coords as Position[][][]);
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
+    const inputCentroid = computeCentroid(geometry);
+    if (!inputCentroid) {
+      throw new HttpException(
+        'geometry inválido o no soportado (use Point/Polygon/MultiPolygon)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const where: Prisma.ComunidadWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      poligono: { not: Prisma.DbNull },
+      ...(typeof params.coloniaId === 'number'
+        ? { coloniaId: params.coloniaId }
+        : {}),
+      ...(typeof params.creadorId === 'number'
+        ? { creadorId: params.creadorId }
+        : {}),
+      ...(params.categoria
+        ? { categoria: { equals: params.categoria, mode: 'insensitive' } }
+        : {}),
+      ...(typeof params.municipioId === 'number'
+        ? { colonia: { municipioId: params.municipioId } }
+        : {}),
+    };
+
+    const comunidades = await this.prisma.comunidad.findMany({
+      where,
+      select: { id: true, nombre: true, coloniaId: true, poligono: true },
+    });
+
+    const scored = [] as {
+      id: number;
+      nombre: string;
+      coloniaId: number | null;
+      distKm: number;
+      geometry: unknown;
+    }[];
+    for (const c of comunidades) {
+      const geom = (c as any).poligono;
+      if (!geom) continue;
+      const cCentroid = computeCentroid(geom);
+      if (!cCentroid) continue; // saltar geometrías inválidas
+      const distKm = haversineKm(inputCentroid, cCentroid);
+      if (!Number.isFinite(distKm)) continue;
+      scored.push({
+        id: c.id,
+        nombre: c.nombre,
+        coloniaId: c.coloniaId ?? null,
+        distKm,
+        geometry: c.poligono as unknown,
+      });
+    }
+
+    scored.sort((a, b) => a.distKm - b.distKm);
+    return scored.slice(0, k);
   }
 }

@@ -1,7 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
 import { Actividad, Prisma } from '@prisma/client';
-import { CreateActividadDto, UpdateActividadDto, ListAllEntities } from './actividades.controller';
+import {
+  CreateActividadDto,
+  UpdateActividadDto,
+  ListAllEntities,
+} from './actividades.controller';
 
 @Injectable()
 export class ActividadesService {
@@ -70,7 +74,10 @@ export class ActividadesService {
     });
   }
 
-  async update(id: number, nuevaActividad: UpdateActividadDto): Promise<Actividad> {
+  async update(
+    id: number,
+    nuevaActividad: UpdateActividadDto,
+  ): Promise<Actividad> {
     const actual = await this.prisma.actividad.findUnique({ where: { id } });
     if (!actual || !actual.isActive || actual.deletedAt) {
       throw new HttpException('Actividad no encontrada', HttpStatus.NOT_FOUND);

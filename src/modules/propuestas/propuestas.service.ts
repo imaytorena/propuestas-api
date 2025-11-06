@@ -17,7 +17,13 @@ export class PropuestasService {
     const limit = Math.min(q.limit ?? 10, 100);
     return this.prisma.propuesta.findMany({
       where: { isActive: true, deletedAt: null },
-      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+      include: {
+        categorias: true,
+        creador: true,
+        actividades: true,
+        asistentes: { include: { cuenta: true } },
+        comunidad: true,
+      },
       take: limit,
       orderBy: { createdAt: 'desc' },
     });
@@ -26,7 +32,13 @@ export class PropuestasService {
   async findOne(id: number, cuentaId?: number): Promise<any> {
     const propuesta = await this.prisma.propuesta.findFirst({
       where: { id, isActive: true, deletedAt: null },
-      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+      include: {
+        categorias: true,
+        creador: true,
+        actividades: true,
+        asistentes: { include: { cuenta: true } },
+        comunidad: true,
+      },
     });
     if (!propuesta) {
       throw new HttpException('Propuesta no encontrada', HttpStatus.NOT_FOUND);
@@ -47,37 +59,66 @@ export class PropuestasService {
     console.log('CreadorId recibido:', dto.creadorId);
     // Verificar que el creador existe
     const creador = await this.prisma.cuenta.findUnique({
-      where: { id: dto.creadorId }
+      where: { id: dto.creadorId },
     });
     console.log('Creador encontrado:', creador);
     if (!creador) {
-      throw new HttpException(`Creador no encontrado con ID: ${dto.creadorId}`, HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        `Creador no encontrado con ID: ${dto.creadorId}`,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
-    const { categoriaIds = [], actividades = [], fechaActividad, ...data } = dto;
-    console.log('Actividades recibidas:', actividades, 'Length:', actividades.length);
-    
-    const propuestaData = {
-      ...data,
-      ...(fechaActividad && { fechaActividad: new Date(fechaActividad) }),
-    };
-    
+    // comunidadId es requerido
+    if (typeof dto.comunidadId !== 'number' || Number.isNaN(dto.comunidadId)) {
+      throw new HttpException(
+        'comunidadId es requerido en la propuesta',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    // Validar que la comunidad exista y esté activa
+    const comunidad = await this.prisma.comunidad.findFirst({
+      where: { id: dto.comunidadId, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!comunidad) {
+      throw new HttpException('Comunidad no válida', HttpStatus.BAD_REQUEST);
+    }
+
+    const { categoriaIds = [], actividades = [], ...data } = dto;
+    console.log(
+      'Actividades recibidas:',
+      actividades,
+      'Length:',
+      actividades.length,
+    );
+
+    // Crear propuesta con actividades
     return this.prisma.propuesta.create({
       data: {
-        ...propuestaData,
+        ...data,
         categorias: categoriaIds.length
           ? { connect: categoriaIds.map((id) => ({ id })) }
           : undefined,
-        actividades: actividades && actividades.length > 0
-          ? {
-              create: actividades.map((actividad) => ({
-                ...actividad,
-                creadorId: dto.creadorId,
-              })),
-            }
-          : undefined,
+        actividades:
+          actividades && actividades.length > 0
+            ? {
+                create: actividades.map((actividad) => ({
+                  nombre: actividad.nombre,
+                  descripcion: actividad.descripcion,
+                  fecha: new Date(actividad.fecha),
+                  horario: actividad.horario,
+                  creadorId: dto.creadorId,
+                })),
+              }
+            : undefined,
       },
-      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+      include: {
+        categorias: true,
+        creador: true,
+        actividades: true,
+        asistentes: { include: { cuenta: true } },
+      },
     });
   }
 
@@ -107,13 +148,18 @@ export class PropuestasService {
       console.log('Actualizando description:', (dto as any).description);
       data.descripcion = (dto as any).description;
     }
-    if (typeof dto.horaActividad !== 'undefined') {
-      data.horaActividad = dto.horaActividad;
+    // comunidadId (opcional en update): validar si se envía
+    if (typeof dto.comunidadId === 'number' && !Number.isNaN(dto.comunidadId)) {
+      const comu = await this.prisma.comunidad.findFirst({
+        where: { id: dto.comunidadId, isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      if (!comu) {
+        throw new HttpException('Comunidad no válida', HttpStatus.BAD_REQUEST);
+      }
+      data.comunidad = { connect: { id: dto.comunidadId } };
     }
-    if (typeof (dto as any).fechaActividad !== 'undefined') {
-      data.fechaActividad = new Date((dto as any).fechaActividad);
-    }
-    
+
     console.log('Data para actualizar propuesta:', data);
 
     // handle categorias replacement if provided
@@ -126,37 +172,52 @@ export class PropuestasService {
       } as Prisma.CategoriaUpdateManyWithoutPropuestasNestedInput;
     }
 
-    // handle actividades update
+    // handle actividades replace-all on update
     if (dto.actividades) {
-      console.log('Procesando actividades:', dto.actividades);
-      
-      for (const actividad of dto.actividades) {
-        console.log('Procesando actividad:', actividad);
-        if (actividad.id) {
-          console.log('Actualizando actividad con ID:', actividad.id);
-          // Update existing actividad
-          await this.prisma.actividad.update({
-            where: { id: actividad.id },
-            data: {
-              nombre: actividad.nombre,
-              descripcion: actividad.descripcion,
-            },
-          });
-        } else {
-          console.log('Creando nueva actividad');
-          // Create new actividad
-          await this.prisma.actividad.create({
-            data: {
-              nombre: actividad.nombre!,
-              descripcion: actividad.descripcion!,
+      console.log('Reemplazando todas las actividades de la propuesta:', id);
+
+      await this.prisma.$transaction(async (tx) => {
+        // Soft-delete all existing actividades for this propuesta
+        await tx.actividad.updateMany({
+          where: { propuestaId: id, isActive: true, deletedAt: null },
+          data: { isActive: false, deletedAt: new Date() },
+        });
+
+        const nuevas = dto.actividades ?? [];
+
+        if (nuevas.length > 0) {
+          // Validate payload and build batch
+          const toCreate = nuevas.map((a, idx) => {
+            if (!a.fecha) {
+              throw new HttpException(
+                `fecha es obligatoria para crear una actividad (index ${idx})`,
+                HttpStatus.BAD_REQUEST,
+              );
+            }
+            if (!a.nombre || !a.descripcion) {
+              throw new HttpException(
+                `nombre y descripcion son obligatorios para crear una actividad (index ${idx})`,
+                HttpStatus.BAD_REQUEST,
+              );
+            }
+            return {
+              nombre: a.nombre,
+              descripcion: a.descripcion,
+              fecha: new Date(a.fecha),
+              horario: a.horario ?? null,
               creadorId: actual.creadorId,
               propuestaId: id,
-            },
+            };
+          });
+
+          // createMany
+          await tx.actividad.createMany({
+            data: toCreate,
           });
         }
-      }
-      
-      console.log('Actividades procesadas');
+      });
+
+      console.log('Actividades reemplazadas');
     }
 
     if (Object.keys(data).length === 0 && !dto.actividades) {
@@ -168,7 +229,12 @@ export class PropuestasService {
     const updated = await this.prisma.propuesta.update({
       where: { id },
       data,
-      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+      include: {
+        categorias: true,
+        creador: true,
+        actividades: true,
+        asistentes: { include: { cuenta: true } },
+      },
     });
     console.log('Propuesta actualizada');
 
@@ -183,11 +249,20 @@ export class PropuestasService {
     return this.prisma.propuesta.update({
       where: { id },
       data: { isActive: false, deletedAt: new Date() },
-      include: { categorias: true, creador: true, actividades: true, asistentes: { include: { cuenta: true } } },
+      include: {
+        categorias: true,
+        creador: true,
+        actividades: true,
+        asistentes: { include: { cuenta: true } },
+      },
     });
   }
 
-  async createAsistencia(propuestaId: number, cuentaId: number, dto: CreateAsistenteDto) {
+  async createAsistencia(
+    propuestaId: number,
+    cuentaId: number,
+    dto: CreateAsistenteDto,
+  ) {
     const propuesta = await this.prisma.propuesta.findFirst({
       where: { id: propuestaId, isActive: true, deletedAt: null },
     });
@@ -199,7 +274,10 @@ export class PropuestasService {
       where: { propuestaId, cuentaId },
     });
     if (existingAsistencia) {
-      throw new HttpException('Ya existe asistencia para esta propuesta', HttpStatus.CONFLICT);
+      throw new HttpException(
+        'Ya existe asistencia para esta propuesta',
+        HttpStatus.CONFLICT,
+      );
     }
 
     return this.prisma.asistente.create({
@@ -212,7 +290,11 @@ export class PropuestasService {
     });
   }
 
-  async updateAsistencia(propuestaId: number, cuentaId: number, dto: UpdateAsistenteDto) {
+  async updateAsistencia(
+    propuestaId: number,
+    cuentaId: number,
+    dto: UpdateAsistenteDto,
+  ) {
     const asistencia = await this.prisma.asistente.findFirst({
       where: { propuestaId, cuentaId },
     });

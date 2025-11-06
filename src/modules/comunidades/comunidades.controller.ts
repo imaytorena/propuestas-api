@@ -17,6 +17,7 @@ import {
   CreateComunidadDto,
   UpdateComunidadDto,
   ListComunidadesQuery,
+  RecommendComunidadesDto,
 } from './dto/comunidades.dto';
 import { AuthGuard, RequestWithUser } from '../../auth/auth.guard';
 
@@ -42,6 +43,50 @@ export class ComunidadesController {
   @Get('paginadas')
   findAllPaginated(@Query() query: ListComunidadesQuery) {
     return this.service.getAllPaginated(query);
+  }
+
+  // Public Geo endpoint: GET /comunidades/map
+  @Get('map')
+  getMap(
+    @Query('municipioId') municipioId?: string,
+    @Query('coloniaId') coloniaId?: string,
+    @Query('creadorId') creadorId?: string,
+    @Query('nombre') nombre?: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+    @Query('categorias') categorias?: string,
+  ) {
+    const parsed = {
+      municipioId: municipioId ? parseInt(municipioId, 10) : undefined,
+      coloniaId: coloniaId ? parseInt(coloniaId, 10) : undefined,
+      creadorId: creadorId ? parseInt(creadorId, 10) : undefined,
+      nombre: nombre?.trim() || undefined,
+      limit: Math.min(Math.max(parseInt(limit ?? '', 10) || 100, 1), 1000),
+      cursorId: cursor ? parseInt(cursor, 10) : undefined,
+      categorias: categorias
+        ? categorias
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+        : undefined,
+    } as const;
+    return this.service.getMapGeo(parsed);
+  }
+
+  @Post('recomendar')
+  recommend(@Body() dto: RecommendComunidadesDto) {
+    return this.service.recommendByKnn(dto);
+  }
+
+  // Unirse a una comunidad
+  @Post(':id/unirse')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  join(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.service.join(id, req.user.id);
   }
 
   @Get(':id')

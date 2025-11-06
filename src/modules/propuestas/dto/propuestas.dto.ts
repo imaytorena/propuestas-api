@@ -1,24 +1,29 @@
-import { PartialType } from '@nestjs/swagger';
 import { IsEnum } from 'class-validator';
 import { EstadoAsistencia } from '@prisma/client';
 
 export class CreateActividadDto {
   nombre: string;
   descripcion: string;
+  // fecha de la actividad (obligatoria)
+  fecha: string; // ISO date
+  // horario opcional (ej. "14:30" o rango)
+  horario?: string;
 }
 
 export class UpdateActividadDto {
   id?: number;
   nombre?: string;
   descripcion?: string;
+  fecha?: string;
+  horario?: string;
 }
 
 export class CreatePropuestaDto {
   titulo: string;
   descripcion: string;
   creadorId: number;
-  fechaActividad?: string;
-  horaActividad?: string;
+  // comunidad requerida para relacionar la propuesta
+  comunidadId: number;
   categoriaIds?: number[];
   actividades?: CreateActividadDto[];
 }
@@ -26,8 +31,8 @@ export class CreatePropuestaDto {
 export class UpdatePropuestaDto {
   titulo?: string;
   descripcion?: string;
-  fechaActividad?: string;
-  horaActividad?: string;
+  // Permitir cambiar comunidad de la propuesta si se requiere
+  comunidadId?: number;
   categoriaIds?: number[];
   actividades?: UpdateActividadDto[];
 }

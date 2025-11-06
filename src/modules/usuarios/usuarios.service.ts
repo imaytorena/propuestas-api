@@ -19,28 +19,31 @@ export class UsuariosService {
           },
         },
         comunidad: true,
+        comunidadesMiembro: {
+          include: { comunidad: true },
+          where: { isActive: true, deletedAt: null },
+        },
       },
     });
 
     const asistenciasAsistire = await this.prisma.asistente.findMany({
-      where: { 
+      where: {
         cuentaId: userWhereUniqueInput.id,
-        estado: 'ASISTIRE'
+        estado: 'ASISTIRE',
       },
       select: { propuestaId: true },
     });
 
     const asistenciasInteres = await this.prisma.asistente.findMany({
-      where: { 
+      where: {
         cuentaId: userWhereUniqueInput.id,
-        estado: 'ME_INTERESA'
+        estado: 'ME_INTERESA',
       },
       select: { propuestaId: true },
     });
 
-    const propuestaIdsAsistire = asistenciasAsistire.map(a => a.propuestaId);
-    const propuestaIdsInteres = asistenciasInteres.map(a => a.propuestaId);
-
+    const propuestaIdsAsistire = asistenciasAsistire.map((a) => a.propuestaId);
+    const propuestaIdsInteres = asistenciasInteres.map((a) => a.propuestaId);
 
     const propuestasInteres = await this.prisma.propuesta.findMany({
       where: {
@@ -48,10 +51,13 @@ export class UsuariosService {
         isActive: true,
         deletedAt: null,
       },
-      orderBy: { fechaActividad: 'asc' },
     });
 
-    return { ...cuenta, propuestaIdsAsistire, propuestasInteres };
+    const comunidades = (cuenta?.comunidadesMiembro || [])
+      .map((m) => m.comunidad)
+      .filter((c): c is NonNullable<typeof c> => !!c);
+
+    return { ...cuenta, comunidades, propuestaIdsAsistire, propuestasInteres };
   }
 
   async users(params: {
@@ -96,13 +102,13 @@ export class UsuariosService {
 
   async updateAccount(id: number, data: any): Promise<any> {
     const { usuario, nombre, apellido, ...cuentaData } = data;
-    
+
     const updateData = {
       ...cuentaData,
       ...(nombre && { nombre }),
       ...(apellido && { apellido }),
     };
-    
+
     // Update cuenta
     const updatedCuenta = await this.prisma.cuenta.update({
       where: { id },
@@ -115,6 +121,10 @@ export class UsuariosService {
           },
         },
         comunidad: true,
+        comunidadesMiembro: {
+          include: { comunidad: true },
+          where: { isActive: true, deletedAt: null },
+        },
       },
     });
 
@@ -140,23 +150,23 @@ export class UsuariosService {
     });
 
     const asistenciasAsistire = await this.prisma.asistente.findMany({
-      where: { 
+      where: {
         cuentaId: id,
-        estado: 'ASISTIRE'
+        estado: 'ASISTIRE',
       },
       select: { propuestaId: true },
     });
 
     const asistenciasInteres = await this.prisma.asistente.findMany({
-      where: { 
+      where: {
         cuentaId: id,
-        estado: 'ME_INTERESA'
+        estado: 'ME_INTERESA',
       },
       select: { propuestaId: true },
     });
 
-    const propuestaIdsAsistire = asistenciasAsistire.map(a => a.propuestaId);
-    const propuestaIdsInteres = asistenciasInteres.map(a => a.propuestaId);
+    const propuestaIdsAsistire = asistenciasAsistire.map((a) => a.propuestaId);
+    const propuestaIdsInteres = asistenciasInteres.map((a) => a.propuestaId);
 
     const propuestasSuscritas = await this.prisma.propuesta.findMany({
       where: {
@@ -164,7 +174,6 @@ export class UsuariosService {
         isActive: true,
         deletedAt: null,
       },
-      orderBy: { fechaActividad: 'asc' },
     });
 
     const propuestasInteres = await this.prisma.propuesta.findMany({
@@ -173,13 +182,14 @@ export class UsuariosService {
         isActive: true,
         deletedAt: null,
       },
-      orderBy: { fechaActividad: 'asc' },
     });
 
     return { ...cuenta, propuestasSuscritas, propuestasInteres };
   }
 
-  async validateIdentificador(identificador: string): Promise<{ available: boolean }> {
+  async validateIdentificador(
+    identificador: string,
+  ): Promise<{ available: boolean }> {
     const existing = await this.prisma.cuenta.findUnique({
       where: { identificador },
     });

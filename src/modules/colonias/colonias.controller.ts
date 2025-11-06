@@ -13,7 +13,7 @@ export class ColoniasController {
     @Query('cursor') cursor?: string,
   ) {
     // Enforce pagination by default; allow up to 1000 per page
-    const takeNum = Math.min(Math.max(parseInt(limit ?? '', 10) || 200, 1), 1000);
+    const takeNum = Math.min(Math.max(parseInt(limit ?? '', 10) || 100, 1), 1000);
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
 
     const where: any = {

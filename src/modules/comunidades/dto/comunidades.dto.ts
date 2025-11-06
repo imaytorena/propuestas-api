@@ -26,3 +26,16 @@ export class ListComunidadesQuery {
   creadorId?: number;
   nombre?: string; // búsqueda por nombre (ILIKE)
 }
+
+// DTO para recomendaciones KNN por cercanía espacial
+export class RecommendComunidadesDto {
+  // GeoJSON válido: Point | Polygon | MultiPolygon
+  geometry: any;
+  // número de elementos a recomendar (1..100)
+  k?: number;
+  // filtros opcionales
+  municipioId?: number;
+  coloniaId?: number;
+  creadorId?: number;
+  categoria?: string;
+}
