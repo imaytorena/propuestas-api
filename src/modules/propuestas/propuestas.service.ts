@@ -37,7 +37,9 @@ export class PropuestasService {
       include: {
         categorias: true,
         creador: true,
-        actividades: true,
+        actividades: {
+          where: { isActive: true, deletedAt: null },
+        },
         asistentes: { include: { cuenta: true } },
         comunidad: true,
       },
@@ -52,7 +54,9 @@ export class PropuestasService {
       include: {
         categorias: true,
         creador: true,
-        actividades: true,
+        actividades: {
+          where: { isActive: true, deletedAt: null },
+        },
         asistentes: { include: { cuenta: true } },
         comunidad: true,
       },
@@ -125,7 +129,9 @@ export class PropuestasService {
       include: {
         categorias: true,
         creador: true,
-        actividades: true,
+        actividades: {
+          where: { isActive: true, deletedAt: null },
+        },
         asistentes: { include: { cuenta: true } },
       },
     });
@@ -174,53 +180,70 @@ export class PropuestasService {
       } as Prisma.CategoriaUpdateManyWithoutPropuestasNestedInput;
     }
 
-    // handle actividades replace-all on update
-    if (dto.actividades) {
+    // handle actividades and actividadesEliminadas
+    if (dto.actividades || dto.actividadesEliminadas) {
       await this.prisma.$transaction(async (tx) => {
-        // Soft-delete all existing actividades for this propuesta
-        await tx.actividad.updateMany({
-          where: { propuestaId: id, isActive: true, deletedAt: null },
-          data: { isActive: false, deletedAt: new Date() },
-        });
-
-        const nuevas = dto.actividades ?? [];
-
-        if (nuevas.length > 0) {
-          // Validate payload and build batch
-          const toCreate = nuevas.map((a, idx) => {
-            if (!a.fecha) {
-              throw new HttpException(
-                `fecha es obligatoria para crear una actividad (index ${idx})`,
-                HttpStatus.BAD_REQUEST,
-              );
-            }
-            if (!a.nombre || !a.descripcion) {
-              throw new HttpException(
-                `nombre y descripcion son obligatorios para crear una actividad (index ${idx})`,
-                HttpStatus.BAD_REQUEST,
-              );
-            }
-            return {
-              nombre: a.nombre,
-              descripcion: a.descripcion,
-              fecha: new Date(a.fecha),
-              horario: a.horario ?? null,
-              creadorId: actual.creadorId,
-              propuestaId: id,
-            };
-          });
-
-          // createMany
-          await tx.actividad.createMany({
-            data: toCreate,
+        // Delete specific activities if actividadesEliminadas is provided
+        if (dto.actividadesEliminadas && dto.actividadesEliminadas.length > 0) {
+          console.log('aqui andamos');
+          await tx.actividad.updateMany({
+            where: {
+              id: { in: dto.actividadesEliminadas },
+              propuestaId: id
+            },
+            data: { isActive: false, deletedAt: new Date() },
           });
         }
-      });
 
-      console.log('Actividades reemplazadas');
+        // Handle actividades updates/creates
+        if (dto.actividades) {
+          const actividades = dto.actividades ?? [];
+
+          for (const actividad of actividades) {
+            if (actividad.id) {
+              // Update existing activity
+              const updateData: any = {};
+              if (actividad.nombre) updateData.nombre = actividad.nombre;
+              if (actividad.descripcion) updateData.descripcion = actividad.descripcion;
+              if (actividad.fecha) updateData.fecha = new Date(actividad.fecha);
+              if (actividad.horario !== undefined) updateData.horario = actividad.horario;
+
+              await tx.actividad.update({
+                where: { id: actividad.id },
+                data: updateData,
+              });
+            } else {
+              // Create new activity
+              if (!actividad.fecha) {
+                throw new HttpException(
+                  'fecha es obligatoria para crear una actividad',
+                  HttpStatus.BAD_REQUEST,
+                );
+              }
+              if (!actividad.nombre || !actividad.descripcion) {
+                throw new HttpException(
+                  'nombre y descripcion son obligatorios para crear una actividad',
+                  HttpStatus.BAD_REQUEST,
+                );
+              }
+
+              await tx.actividad.create({
+                data: {
+                  nombre: actividad.nombre,
+                  descripcion: actividad.descripcion,
+                  fecha: new Date(actividad.fecha),
+                  horario: actividad.horario ?? null,
+                  creadorId: actual.creadorId,
+                  propuestaId: id,
+                },
+              });
+            }
+          }
+        }
+      });
     }
 
-    if (Object.keys(data).length === 0 && !dto.actividades) {
+    if (Object.keys(data).length === 0 && !dto.actividades && !dto.actividadesEliminadas) {
       return this.findOne(id);
     }
 
@@ -230,7 +253,9 @@ export class PropuestasService {
       include: {
         categorias: true,
         creador: true,
-        actividades: true,
+        actividades: {
+          where: { isActive: true, deletedAt: null },
+        },
         asistentes: { include: { cuenta: true } },
       },
     });
@@ -249,7 +274,9 @@ export class PropuestasService {
       include: {
         categorias: true,
         creador: true,
-        actividades: true,
+        actividades: {
+          where: { isActive: true, deletedAt: null },
+        },
         asistentes: { include: { cuenta: true } },
       },
     });

@@ -35,6 +35,7 @@ export class UpdatePropuestaDto {
   comunidadId?: number;
   categoriaIds?: number[];
   actividades?: UpdateActividadDto[];
+  actividadesEliminadas?: number[];
 }
 
 export class ListAllPropuestasQuery {

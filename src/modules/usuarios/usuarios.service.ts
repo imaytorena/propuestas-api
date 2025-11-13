@@ -45,6 +45,14 @@ export class UsuariosService {
     const propuestaIdsAsistire = asistenciasAsistire.map((a) => a.propuestaId);
     const propuestaIdsInteres = asistenciasInteres.map((a) => a.propuestaId);
 
+    const propuestasAsistire = await this.prisma.propuesta.findMany({
+      where: {
+        id: { in: propuestaIdsAsistire },
+        isActive: true,
+        deletedAt: null,
+      },
+    });
+
     const propuestasInteres = await this.prisma.propuesta.findMany({
       where: {
         id: { in: propuestaIdsInteres },
@@ -57,7 +65,7 @@ export class UsuariosService {
       .map((m) => m.comunidad)
       .filter((c): c is NonNullable<typeof c> => !!c);
 
-    return { ...cuenta, comunidades, propuestaIdsAsistire, propuestasInteres };
+    return { ...cuenta, comunidades, propuestasAsistire, propuestasInteres };
   }
 
   async users(params: {
