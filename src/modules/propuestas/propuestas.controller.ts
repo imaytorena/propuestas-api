@@ -42,10 +42,8 @@ export class PropuestasController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth('access-token')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: RequestWithUser) {
-    return this.propuestasService.findOne(id, req.user.id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.propuestasService.findOne(id);
   }
 
   @Put(':id')
