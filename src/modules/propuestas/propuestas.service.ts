@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
+import { EmailService } from '../../services/email.service';
 import { Propuesta, Prisma } from '@prisma/client';
 import {
   CreatePropuestaDto,
@@ -11,7 +12,10 @@ import {
 
 @Injectable()
 export class PropuestasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async getAll(q: ListAllPropuestasQuery): Promise<Propuesta[]> {
     const limit = Math.min(q.limit ?? 10, 100);
@@ -304,14 +308,39 @@ export class PropuestasService {
       );
     }
 
-    return this.prisma.asistente.create({
+    const asistencia = await this.prisma.asistente.create({
       data: {
         propuestaId,
         cuentaId,
         estado: dto.estado,
       },
-      include: { propuesta: true, cuenta: true },
+      include: { 
+        propuesta: {
+          include: {
+            comunidad: true,
+            actividades: {
+              where: { isActive: true, deletedAt: null },
+            },
+          },
+        }, 
+        cuenta: true 
+      },
     });
+    console.log(dto);
+    // Enviar email de confirmación si el estado es ASISTIRE
+    if (dto.estado === 'ASISTIRE' && asistencia.cuenta.correo) {
+      const nombreCompleto = (asistencia.cuenta.nombre || '') + 
+        (asistencia.cuenta.apellido ? ' ' + asistencia.cuenta.apellido : '');
+      
+      this.emailService.sendEventConfirmationEmail(
+        asistencia.cuenta.correo,
+        nombreCompleto || 'Usuario',
+        asistencia.propuesta,
+        asistencia.propuesta.actividades,
+      ).catch(error => console.error('Error enviando email de confirmación:', error));
+    }
+
+    return asistencia;
   }
 
   async updateAsistencia(
@@ -326,10 +355,36 @@ export class PropuestasService {
       throw new HttpException('Asistencia no encontrada', HttpStatus.NOT_FOUND);
     }
 
-    return this.prisma.asistente.update({
+    const updatedAsistencia = await this.prisma.asistente.update({
       where: { id: asistencia.id },
       data: { estado: dto.estado },
-      include: { propuesta: true, cuenta: true },
+      include: { 
+        propuesta: {
+          include: {
+            comunidad: true,
+            actividades: {
+              where: { isActive: true, deletedAt: null },
+            },
+          },
+        }, 
+        cuenta: true 
+      },
     });
+
+    // Enviar email de confirmación si el nuevo estado es ASISTIRE
+    if (dto.estado === 'ASISTIRE' && updatedAsistencia.cuenta.correo) {
+      const nombreCompleto = (updatedAsistencia.cuenta.nombre || '') + 
+        (updatedAsistencia.cuenta.apellido ? ' ' + updatedAsistencia.cuenta.apellido : '');
+      
+      this.emailService.sendEventConfirmationEmail(
+        updatedAsistencia.cuenta.correo,
+        nombreCompleto || 'Usuario',
+        updatedAsistencia.propuesta,
+        updatedAsistencia.propuesta.actividades,
+      ).catch(error => console.error('Error enviando email de confirmación:', error));
+    }
+
+    return updatedAsistencia;
   }
+
 }
