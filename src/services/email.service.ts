@@ -8,14 +8,9 @@ export class EmailService {
   async sendWelcomeEmail(email: string, nombre?: string): Promise<void> {
     const nombreCompleto = nombre || 'Usuario';
     
-    // En desarrollo, logueamos el email
-    this.logger.log(`📧 Enviando email de bienvenida a: ${email}`);
-    this.logger.log(`👋 Bienvenido/a ${nombreCompleto} a COLECTIVIDAP!`);
-    
     // Simular el contenido del email que se enviaría
     const emailContent = this.getWelcomeEmailTemplate(nombreCompleto);
-    this.logger.debug(`Contenido del email:\n${emailContent}`);
-    
+
     // Envío real de email con SMTP
     try {
       const transporter = nodemailer.createTransport({
@@ -30,13 +25,12 @@ export class EmailService {
       });
       
       await transporter.sendMail({
-        from: `"${process.env.MAIL_FROM_NAME || 'COLECTIVIDAPI'}" <${process.env.MAIL_FROM || process.env.MAIL_USER || 'noreply@colectividapp.com'}>`,
+        from: `"${process.env.MAIL_FROM_NAME || 'ColectividApp'}" <${process.env.MAIL_FROM || process.env.MAIL_USER || 'noreply@colectividapp.com'}>`,
         to: email,
-        subject: '¡Bienvenido/a a COLECTIVIDAPI!',
+        subject: '¡Bienvenido/a a ColectividApp!',
         html: emailContent,
       });
       
-      this.logger.log(`✅ Email enviado exitosamente a: ${email}`);
     } catch (error) {
       this.logger.error(`❌ Error enviando email a ${email}:`, error);
     }
@@ -48,9 +42,6 @@ export class EmailService {
     propuesta: any,
     actividades: any[],
   ): Promise<void> {
-    this.logger.log(`📧 Enviando confirmación de evento a: ${email}`);
-    this.logger.log(`🎉 Confirmación para: ${propuesta.titulo}`);
-    
     const emailContent = this.getEventConfirmationTemplate(nombre, propuesta, actividades);
     this.logger.debug(`Contenido del email:\n${emailContent}`);
     
@@ -67,13 +58,12 @@ export class EmailService {
       });
       
       await transporter.sendMail({
-        from: `"${process.env.MAIL_FROM_NAME || 'COLECTIVIDAPI'}" <${process.env.MAIL_FROM || process.env.MAIL_USER || 'noreply@colectividapp.com'}>`,
+        from: `"${process.env.MAIL_FROM_NAME || 'ColectividApp'}" <${process.env.MAIL_FROM || process.env.MAIL_USER || 'noreply@colectividapp.com'}>`,
         to: email,
         subject: `Confirmación de asistencia: ${propuesta.titulo}`,
         html: emailContent,
       });
       
-      this.logger.log(`✅ Email de confirmación enviado exitosamente a: ${email}`);
     } catch (error) {
       this.logger.error(`❌ Error enviando email de confirmación a ${email}:`, error);
     }
@@ -83,7 +73,7 @@ export class EmailService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333; margin: 0;">¡Bienvenido/a a COLECTIVIDAP!</h1>
+          <h1 style="color: #333; margin: 0;">¡Bienvenido/a a ColectividApp!</h1>
         </div>
         <div style="padding: 20px;">
           <p>Hola <strong>${nombre}</strong>,</p>
@@ -151,7 +141,7 @@ export class EmailService {
           </div>
 
           <p>¡Esperamos verte pronto!</p>
-          <p>Saludos,<br>El equipo de COLECTIVIDAP</p>
+          <p>Saludos,<br>El equipo de ColectividApp</p>
         </div>
         <div style="background-color: #f8f9fa; padding: 10px; text-align: center; font-size: 12px; color: #666;">
           <p>Este es un email automático, por favor no respondas a este mensaje.</p>
