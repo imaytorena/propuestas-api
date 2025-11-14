@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../services/prisma.service';
+import { EmailService } from '../services/email.service';
 import { jwtConstants } from './constants';
 import * as argon2 from 'argon2';
 import { AuthDto } from './dto/auth.dto';
@@ -14,6 +15,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async login(data: AuthDto): Promise<{
@@ -96,6 +98,13 @@ export class AuthService {
       },
     });
 
+    // Enviar email de bienvenida de forma asíncrona (no bloquear respuesta)
+    if (cuenta.correo) {
+      this.emailService.sendWelcomeEmail(
+        cuenta.correo,
+        (cuenta.nombre || '') + (cuenta.apellido ? ' ' + cuenta.apellido : ''),
+      ).catch(error => console.error('Error enviando email de bienvenida:', error));
+    }
     return {
       id: cuenta.id,
       identificador: cuenta.identificador,

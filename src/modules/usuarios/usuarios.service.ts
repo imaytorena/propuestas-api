@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
+import { EmailService } from '../../services/email.service';
 import { Usuario, Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async getById(
     userWhereUniqueInput: Prisma.UsuarioWhereUniqueInput,
@@ -86,9 +90,22 @@ export class UsuariosService {
   }
 
   async create(data: Prisma.UsuarioCreateInput): Promise<Usuario> {
-    return this.prisma.usuario.create({
+    const usuario = await this.prisma.usuario.create({
       data,
+      include: {
+        cuenta: true,
+      },
     });
+
+    // Enviar email de bienvenida de forma asíncrona (no bloquear respuesta)
+    if (usuario.cuenta?.correo) {
+      this.emailService.sendWelcomeEmail(
+        usuario.cuenta.correo,
+        usuario.cuenta.nombre || undefined,
+      ).catch(error => console.error('Error enviando email de bienvenida:', error));
+    }
+
+    return usuario;
   }
 
   async update(params: {
