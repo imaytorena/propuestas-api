@@ -24,6 +24,8 @@ export class CreatePropuestaDto {
   creadorId: number;
   // comunidad requerida para relacionar la propuesta
   comunidadId: number;
+  // idea origen (obligatoria, debe estar aprobada)
+  fromIdeaId: number;
   categoriaIds?: number[];
   actividades?: CreateActividadDto[];
 }

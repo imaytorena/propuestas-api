@@ -3,7 +3,8 @@ import { PartialType } from '@nestjs/swagger';
 export class CreateIdeaDto {
   titulo: string;
   descripcion: string;
-  comunidadId: number;
+  comunidadId?: number;
+  creadorId?: number;
 }
 
 export class UpdateIdeaDto extends PartialType(CreateIdeaDto) {}

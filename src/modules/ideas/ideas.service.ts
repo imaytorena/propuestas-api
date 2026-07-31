@@ -1,5 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../services/prisma.service';
+import { DecisionTreeService } from '../../services/decision-tree.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { Idea, Prisma } from '@prisma/client';
 import {
   CreateIdeaDto,
@@ -10,7 +12,11 @@ import {
 
 @Injectable()
 export class IdeasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private decisionTree: DecisionTreeService,
+    private notificaciones: NotificacionesService,
+  ) {}
 
   async getAll(q: ListAllEntities): Promise<{
     data: Idea[];
@@ -48,6 +54,7 @@ export class IdeasService {
         skip,
         include: {
           comunidad: true,
+          _count: { select: { votos: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -64,6 +71,10 @@ export class IdeasService {
   async findOne(id: number): Promise<Idea> {
     const idea = await this.prisma.idea.findFirst({
       where: { id, isActive: true, deletedAt: null },
+      include: {
+        comunidad: true,
+        _count: { select: { votos: true } },
+      },
     });
     if (!idea) {
       throw new HttpException('Idea no encontrada', HttpStatus.NOT_FOUND);
@@ -125,6 +136,13 @@ export class IdeasService {
   async generarPropuesta(id: number, dto: GeneratePropuestaFromIdeaDto) {
     const idea = await this.findOne(id);
 
+    if (!idea.aprobada) {
+      throw new HttpException(
+        'La idea aún no ha sido aprobada para convertirse en propuesta',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     // Determinar nombre y descripcion a partir del descripcion si no se proveen
     const descripcionOld = idea.descripcion?.trim() ?? '';
     // nombre máximo 255 chars según Prisma (VarChar 255)
@@ -169,5 +187,49 @@ export class IdeasService {
       where: { id },
       data: { isActive: false, deletedAt: new Date() },
     });
+  }
+
+  async votar(ideaId: number, cuentaId: number) {
+    const idea = await this.prisma.idea.findFirst({
+      where: { id: ideaId, isActive: true, deletedAt: null },
+    });
+    if (!idea) throw new HttpException('Idea no encontrada', HttpStatus.NOT_FOUND);
+    if (idea.aprobada) throw new HttpException('La idea ya fue aprobada', HttpStatus.CONFLICT);
+
+    const existing = await this.prisma.ideaVoto.findUnique({
+      where: { ideaId_cuentaId: { ideaId, cuentaId } },
+    });
+    if (existing) throw new HttpException('Ya votaste por esta idea', HttpStatus.CONFLICT);
+
+    await this.prisma.ideaVoto.create({ data: { ideaId, cuentaId } });
+
+    // Evaluar árbol de decisión
+    const resultado = await this.decisionTree.evaluar(ideaId);
+    if (resultado.aprobada) {
+      await this.prisma.idea.update({ where: { id: ideaId }, data: { aprobada: true } });
+
+      // Notificar al creador si existe
+      if (idea.creadorId) {
+        await this.notificaciones.crear(
+          idea.creadorId,
+          'IDEA_APROBADA',
+          `¡Tu idea "${idea.titulo}" ha sido aprobada para propuesta!`,
+          { ideaId },
+        );
+      }
+    }
+
+    const totalVotos = await this.prisma.ideaVoto.count({ where: { ideaId } });
+    return { aprobada: resultado.aprobada, razon: resultado.razon, totalVotos };
+  }
+
+  async desvotar(ideaId: number, cuentaId: number) {
+    const voto = await this.prisma.ideaVoto.findUnique({
+      where: { ideaId_cuentaId: { ideaId, cuentaId } },
+    });
+    if (!voto) throw new HttpException('No has votado por esta idea', HttpStatus.NOT_FOUND);
+    await this.prisma.ideaVoto.delete({ where: { id: voto.id } });
+    const totalVotos = await this.prisma.ideaVoto.count({ where: { ideaId } });
+    return { totalVotos };
   }
 }

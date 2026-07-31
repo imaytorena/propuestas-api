@@ -92,6 +92,20 @@ export class PropuestasService {
       );
     }
 
+    // Verificar que la idea origen existe y está aprobada
+    const idea = await this.prisma.idea.findFirst({
+      where: { id: dto.fromIdeaId, isActive: true, deletedAt: null },
+    });
+    if (!idea) {
+      throw new HttpException('Idea no encontrada', HttpStatus.BAD_REQUEST);
+    }
+    if (!idea.aprobada) {
+      throw new HttpException(
+        'La idea aún no ha sido aprobada para convertirse en propuesta',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     // comunidadId es requerido
     if (typeof dto.comunidadId !== 'number' || Number.isNaN(dto.comunidadId)) {
       throw new HttpException(

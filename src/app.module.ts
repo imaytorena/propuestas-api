@@ -9,6 +9,7 @@ import {
 import { PrismaModule } from './services/prisma.module';
 import { ColoniasController } from './modules/colonias/colonias.controller';
 import { AuthModule } from './auth/auth.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from './auth/auth.module';
     PropuestasModule,
     ComunidadesModule,
     ActividadesModule,
+    NotificacionesModule,
   ],
   controllers: [ColoniasController],
 })

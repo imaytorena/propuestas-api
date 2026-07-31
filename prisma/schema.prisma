@@ -119,6 +119,9 @@ model Cuenta {
   propuestas         Propuesta[]         @relation("PropuestasCreadas")
   actividades        Actividad[]         @relation("ActividadesCreadas")
   comunidadesMiembro ComunidadMiembro[]
+  ideasCreadas       Idea[]              @relation("IdeasCreadas")
+  votosIdea          IdeaVoto[]          @relation("VotosIdea")
+  notificaciones     Notificacion[]      @relation("NotificacionesCuenta")
 
   @@map("cuentas")
 }
@@ -305,16 +308,47 @@ model Idea {
   titulo      String    @db.VarChar(255)
   descripcion String    @db.VarChar(255)
   comunidadId Int?      @map("comunidad_id")
+  creadorId   Int?      @map("creador_id")
   // status
+  aprobada    Boolean   @default(false) @map("aprobada")
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
   // relations
-  comunidad Comunidad? @relation(fields: [comunidadId], references: [id])
+  comunidad Comunidad?  @relation(fields: [comunidadId], references: [id])
+  creador   Cuenta?     @relation("IdeasCreadas", fields: [creadorId], references: [id])
+  votos     IdeaVoto[]
 
   @@map("ideas")
+}
+
+model IdeaVoto {
+  id        Int      @id @default(autoincrement())
+  ideaId    Int      @map("idea_id")
+  cuentaId  Int      @map("cuenta_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  idea   Idea   @relation(fields: [ideaId], references: [id])
+  cuenta Cuenta @relation("VotosIdea", fields: [cuentaId], references: [id])
+
+  @@unique([ideaId, cuentaId])
+  @@map("idea_votos")
+}
+
+model Notificacion {
+  id        Int       @id @default(autoincrement())
+  cuentaId  Int       @map("cuenta_id")
+  tipo      String    @db.VarChar(50)
+  mensaje   String    @db.Text
+  leida     Boolean   @default(false)
+  payload   Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  cuenta Cuenta @relation("NotificacionesCuenta", fields: [cuentaId], references: [id])
+
+  @@map("notificaciones")
 }
 
 model Edicion {

@@ -27,7 +27,10 @@ export class IdeasController {
   constructor(private readonly ideasService: IdeasService) {}
 
   @Post()
-  create(@Body() createIdeaDto: CreateIdeaDto) {
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  create(@Body() createIdeaDto: CreateIdeaDto, @Req() req: RequestWithUser) {
+    createIdeaDto.creadorId = req.user.id;
     return this.ideasService.create(createIdeaDto);
   }
 
@@ -54,7 +57,7 @@ export class IdeasController {
   @Post(':id/generar-propuesta')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
-  generarPropuesta(
+  async generarPropuesta(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GeneratePropuestaFromIdeaDto,
     @Req() req: RequestWithUser,
@@ -67,6 +70,33 @@ export class IdeasController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth('access-token')
   remove(@Param('id', ParseIntPipe) id: number) {
+    return this.ideasService.remove(id);
+  }
+
+  @Post(':id/votar')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  votar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.ideasService.votar(id, req.user.id);
+  }
+
+  @Delete(':id/votar')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  desvotar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.ideasService.desvotar(id, req.user.id);
+  }
+
+  @Put(':id/archivar')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('access-token')
+  archivar(@Param('id', ParseIntPipe) id: number) {
     return this.ideasService.remove(id);
   }
 }
